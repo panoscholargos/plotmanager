@@ -978,14 +978,15 @@ function openKtimatologio(id) {
       .catch(() => toast(`${where} ΚΑΕΚ για αναζήτηση: ${kaek}`));
 }
 
-// Google Earth (web) σε 3D: η αναζήτηση των συντεταγμένων βάζει πινέζα, η κάμερα @… δίνει λοξή 3D όψη
-// @lat,lng,υψόμετρο(a),απόσταση(d),οπτικό πεδίο(y),αζιμούθιο(h),κλίση(t),περιστροφή(r)
+// Google Earth (web): σκέτη αναζήτηση συντεταγμένων → το Earth πετά εκεί και βάζει πινέζα.
+// (Με θέση κάμερας «/@…» στο τέλος, το Earth επαναφέρει μόνο την κάμερα και δεν βάζει πινέζα.)
+// Η 3D όψη: shift + σύρσιμο, ή το κουμπί 3D κάτω δεξιά στο Earth.
+// Η λοξή όψη με κάμερα χρησιμοποιείται στο KML (exportPlotEarthKml).
 const EARTH_VIEW = { range: 800, tilt: 55, heading: 0 };
 function earthUrl(p) {
   const lat = num(p.lat), lng = num(p.lng);
   if (lat === null || lng === null) return null;
-  const ll = `${lat.toFixed(7)},${lng.toFixed(7)}`;
-  return `https://earth.google.com/web/search/${ll}/@${ll},0a,${EARTH_VIEW.range}d,35y,${EARTH_VIEW.heading}h,${EARTH_VIEW.tilt}t,0r`;
+  return `https://earth.google.com/web/search/${lat.toFixed(7)},${lng.toFixed(7)}`;
 }
 
 // ---- KML: κοινά βοηθήματα ----
