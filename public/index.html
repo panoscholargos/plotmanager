@@ -4,6 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PlotManager</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="theme-color" content="#161b22">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PlotManager">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.11.0/proj4.js"></script>
@@ -33,6 +42,13 @@ button,input,select,textarea{font:inherit;color:inherit}
 .logo svg{width:24px;height:24px}
 .sep{width:1px;height:24px;background:var(--border)}
 .section-name{color:var(--muted)}
+#projSel{background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:4px 8px;max-width:260px;min-width:0;font-weight:600}
+.projbox{display:flex;align-items:center;gap:6px;min-width:0}
+.plist{display:grid;gap:6px}
+.pitem{display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:6px;padding:7px 10px;background:var(--panel2)}
+.pitem .nm{flex:1;min-width:0}
+.pchips{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px}
+.pchips label{display:flex;align-items:center;gap:4px;cursor:pointer;white-space:nowrap}
 .spacer{flex:1}
 .who{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:13px}
 .role{font-size:11px;border:1px solid var(--border);border-radius:10px;padding:0 7px}
@@ -40,7 +56,9 @@ button,input,select,textarea{font:inherit;color:inherit}
 #panelToggle{display:none}
 
 /* ---------- κύρια διάταξη ---------- */
-#main{display:flex;height:calc(100vh - 48px);position:relative}
+body{display:flex;flex-direction:column;height:100vh;height:100dvh}
+#topbar{flex:none}
+#main{display:flex;flex:1;min-height:0;position:relative}
 .nav{display:flex;gap:4px}
 .navbtn{background:none;border:1px solid transparent;color:var(--muted);border-radius:6px;padding:4px 10px;cursor:pointer}
 .navbtn:hover{color:var(--text);background:var(--hover)}
@@ -174,7 +192,7 @@ legend{color:var(--muted);font-size:12px;padding:0 6px;text-transform:uppercase;
 /* login / modal / toast */
 #login{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);z-index:2000}
 .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:22px;width:min(360px,92vw)}
-.card h1{font-size:18px;margin:0 0 4px;display:flex;align-items:center;gap:8px}
+.card h1{font-size:18px;margin:0 0 4px;display:flex;align-items:center;gap:10px}
 .card .sub{color:var(--muted);margin-bottom:16px;font-size:13px}
 .card .fld{margin-bottom:10px}
 #modal{position:fixed;inset:0;background:rgba(1,4,9,.7);display:flex;align-items:center;justify-content:center;z-index:1900}
@@ -190,7 +208,13 @@ table.users th{color:var(--muted);font-weight:400;font-size:12px}
 #lightbox img{max-width:96vw;max-height:92vh}
 
 @media (max-width:820px){
-  #topbar{gap:6px;padding:0 8px}
+  /* κινητό: δύο σειρές — 1) έργο + εικονίδια, 2) Λίστα / Χάρτης / Πίνακας σε όλο το πλάτος */
+  #topbar{gap:6px;padding:6px 8px;height:auto;flex-wrap:wrap;row-gap:6px}
+  #topbar .logo{display:none}
+  .projbox{flex:1;min-width:0} #projSel{max-width:none;width:100%;padding:5px 6px;font-size:14px}
+  #topbar .spacer{display:none}
+  .nav{order:10;flex:0 0 100%;display:flex;gap:4px}
+  .nav .navbtn{flex:1;text-align:center;border-color:var(--border);padding:5px 4px}
   #topbar .sep,.who .role{display:none}
   .navbtn .lbl-l{display:none} .navbtn .lbl-s{display:inline}
   .nav{gap:2px;min-width:0}
@@ -211,13 +235,17 @@ table.users th{color:var(--muted);font-weight:400;font-size:12px}
 <!-- ============ LOGIN ============ -->
 <div id="login">
   <form class="card" onsubmit="doLogin(event)">
-    <h1><svg viewBox="0 0 24 24" width="22" height="22"><use href="#logoIcon"/></svg>PlotManager</h1>
+    <h1><img src="/favicon.svg" width="34" height="34" alt="">PlotManager</h1>
     <div class="sub">Επιλογή οικοπέδων για δόμηση</div>
     <label class="fld"><span>Όνομα χρήστη</span><input type="text" id="lgUser" autocomplete="username" autocapitalize="none" required></label>
     <label class="fld"><span>Κωδικός</span><input type="password" id="lgPass" autocomplete="current-password" required></label>
     <div class="row" style="justify-content:space-between;margin-top:6px">
       <span id="lgErr" class="bad" style="font-size:13px"></span>
       <button class="btn primary" id="lgBtn">Σύνδεση</button>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <button type="button" class="btn sm hidden installBtn" onclick="installApp()">⤓ Εγκατάσταση εφαρμογής</button>
+      <span id="iosHint" class="note hidden">Για εγκατάσταση στο iPhone/iPad: Κοινοποίηση <b>⬆</b> → «Προσθήκη στην οθόνη Αφετηρίας».</span>
     </div>
   </form>
 </div>
@@ -229,7 +257,10 @@ table.users th{color:var(--muted);font-weight:400;font-size:12px}
 <!-- ============ APP ============ -->
 <div id="topbar">
   <button class="btn sm" id="panelToggle" onclick="togglePanel()">☰</button>
-  <div class="logo"><svg><use href="#logoIcon"/></svg><span class="logo-text">PlotManager</span></div>
+  <div class="logo"><img src="/favicon.svg" width="26" height="26" alt=""><span class="logo-text">PlotManager</span></div>
+  <div class="sep"></div>
+  <div class="projbox"><select id="projSel" title="Έργο" onchange="switchProject(this.value)"></select>
+    <button class="btn sm hidden" id="projBtn" onclick="openProjects()" title="Διαχείριση έργων">⚙<span class="lbl"> Έργα</span></button></div>
   <div class="sep"></div>
   <div class="nav">
     <button class="navbtn on" data-v="plots" onclick="setView('plots')"><span class="lbl-l">Επιλογή Οικοπέδων</span><span class="lbl-s">Λίστα</span></button>
@@ -240,6 +271,7 @@ table.users th{color:var(--muted);font-weight:400;font-size:12px}
   <button class="btn sm hidden" id="usersBtn" onclick="openUsers()" title="Χρήστες">👥<span class="lbl"> Χρήστες</span></button>
   <div class="sep"></div>
   <div class="who"><span class="nm" id="whoName"></span><span class="role" id="whoRole"></span></div>
+  <button class="btn sm hidden installBtn" onclick="installApp()" title="Εγκατάσταση εφαρμογής">⤓<span class="lbl"> Εγκατάσταση</span></button>
   <button class="btn sm" onclick="openPassword()" title="Αλλαγή κωδικού">🔑</button>
   <button class="btn sm" title="Έξοδος" onclick="if(!DIRTY||confirm('Υπάρχουν μη αποθηκευμένες αλλαγές. Έξοδος χωρίς αποθήκευση;'))logout()">⏻<span class="lbl"> Έξοδος</span></button>
 </div>
@@ -259,6 +291,7 @@ table.users th{color:var(--muted);font-weight:400;font-size:12px}
       <span><i style="background:#f85149"></i>Απορρίφθηκε (κριτήρια)</span>
     </div>
     <button class="btn primary" onclick="exportMySimpleGIS()">⬇ Export to mySimpleGIS</button>
+    <button class="btn" style="margin-top:6px" onclick="exportKML()">⬇ Export σε KML (Google Earth)</button>
   </div>
   <div id="compare" class="hidden"></div>
 </div>
@@ -292,6 +325,7 @@ let SEARCH = '';
 let DIRTY = false;
 let PICK = false;
 let VIEW = 'plots';
+let PROJECTS = [], PROJ = null;
 let map, markerLayer, tempMarker;
 
 const isAdmin = () => ME && ME.role === 'admin';
@@ -349,7 +383,10 @@ async function doLogin(e) {
   finally { $('lgBtn').disabled = false; }
 }
 function logout(expired) {
-  TOKEN = ''; ME = null; CUR = null; CUR_REVIEWS = []; TAB = 'info'; DIRTY = false; if (VIEW !== 'plots') setView('plots', true); SEARCH = ''; FILTER = 'all'; closeModal(); localStorage.removeItem('pm_token');
+  TOKEN = ''; ME = null; CUR = null; CUR_REVIEWS = []; TAB = 'info'; DIRTY = false; if (VIEW !== 'plots') setView('plots', true); SEARCH = ''; FILTER = 'all'; PROJECTS = []; PROJ = null; PLOTS = []; closeModal(); localStorage.removeItem('pm_token');
+  // καθαρίζουμε ό,τι έδειχνε ο προηγούμενος χρήστης (να μη μένει στη σελίδα πίσω από τη φόρμα σύνδεσης)
+  $('panel').innerHTML = ''; $('compare').innerHTML = ''; $('projSel').innerHTML = '';
+  if (markerLayer) markerLayer.clearLayers(); if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
   $('login').classList.remove('hidden');
   if (expired === true) $('lgErr').textContent = 'Η σύνδεση έληξε, συνδεθείτε ξανά.';
 }
@@ -360,14 +397,141 @@ async function boot() {
   catch (e) { if (TOKEN) $('lgErr').textContent = 'Δεν ήταν δυνατή η επικοινωνία με τον διακομιστή. Ανανεώστε τη σελίδα ή συνδεθείτε ξανά.'; }
 }
 async function startApp() {
-  $('login').classList.add('hidden');
   $('whoName').textContent = ME.name || ME.username;
   $('whoRole').textContent = isAdmin() ? 'admin' : 'χρήστης';
   $('whoRole').className = 'role' + (isAdmin() ? ' admin' : '');
   $('usersBtn').classList.toggle('hidden', !isAdmin());
+  $('projBtn').classList.toggle('hidden', !isAdmin());
+  await loadProjects();
   await loadPlots();
+  $('login').classList.add('hidden');      // μόνο αφού φορτωθούν: αλλιώς σε σφάλμα θα έμενε άδεια οθόνη
   renderList();
   setTimeout(() => map.invalidateSize(), 50);
+}
+
+// ===================== ΕΡΓΑ =====================
+const projKey = () => 'pm_proj_' + (ME ? ME.username : '');
+const curProj = () => PROJECTS.find(p => p.id === PROJ) || null;
+async function loadProjects(keep) {
+  PROJECTS = await api('projects');
+  let want = keep || PROJ;
+  try { want = want || localStorage.getItem(projKey()); } catch {}
+  if (!PROJECTS.some(p => p.id === want)) want = (PROJECTS.find(p => !p.archived) || PROJECTS[0] || {}).id || null;
+  PROJ = want;
+  try { if (PROJ) localStorage.setItem(projKey(), PROJ); } catch {}
+  renderProjSel(); applyProjectSettings();
+}
+function renderProjSel() {
+  $('projSel').innerHTML = PROJECTS.length
+    ? PROJECTS.map(p => `<option value="${esc(p.id)}" ${p.id === PROJ ? 'selected' : ''}>${esc(p.name)}${p.archived ? ' (αρχείο)' : ''}</option>`).join('')
+    : '<option value="">— κανένα έργο —</option>';
+}
+// Τα κριτήρια σύμβασης και τα βάρη βαθμολογίας είναι ανά έργο
+const DEF_CRITERIA = { ...CFG.contract };
+const DEF_WEIGHTS = {};
+function applyProjectSettings() {
+  const p = curProj();
+  Object.assign(CFG.contract, DEF_CRITERIA, (p && p.criteria) || {});
+  if (!Object.keys(DEF_WEIGHTS).length) for (const c of SCORE_CRITERIA) DEF_WEIGHTS[c[0]] = c[2];
+  for (const c of SCORE_CRITERIA) c[2] = (p && p.weights && p.weights[c[0]] != null) ? p.weights[c[0]] : DEF_WEIGHTS[c[0]];
+}
+async function switchProject(id) {
+  if (id === PROJ) return;
+  if (DIRTY && !confirm('Υπάρχουν μη αποθηκευμένες αλλαγές. Να απορριφθούν;')) { renderProjSel(); return; }
+  PROJ = id; DIRTY = false; CUR = null; SEARCH = '';
+  try { localStorage.setItem(projKey(), PROJ); } catch {}
+  applyProjectSettings();
+  try { await loadPlots(); } catch (e) { toast(e.message, 'err'); }
+  if (id !== PROJ) return;                 // πατήθηκε στο μεταξύ άλλο έργο
+  if (VIEW === 'map') renderMapPage(false); else if (VIEW === 'compare') renderCompare(false); else renderList();
+}
+const fileSlug = () => { const p = curProj(); return p ? p.name.replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, '_').slice(0, 40) + '_' : ''; };
+
+// --- διαχείριση έργων (admin) ---
+function openProjects() {
+  openModal(`<div class="ph"><h2>Έργα</h2><button class="btn sm" onclick="closeModal()">✕</button></div><div class="mb" id="projBody"></div>`);
+  renderProjects();
+}
+function renderProjects() {
+  $('projBody').innerHTML = `
+  <fieldset><legend>Νέο έργο</legend><div class="grid">
+    <label class="fld"><span>Όνομα έργου</span><input type="text" id="npName" placeholder="π.χ. Αναζήτηση Παπαδόπουλου"></label>
+    <label class="fld"><span>Πελάτης</span><input type="text" id="npClient"></label>
+    <div class="full row" style="justify-content:flex-end"><button class="btn primary sm" onclick="addProject()">Δημιουργία</button></div>
+  </div></fieldset>
+  <div class="row" style="justify-content:space-between;margin-bottom:10px">
+    <span class="note">Πλήρες αντίγραφο όλων των έργων, οικοπέδων, παρατηρήσεων και χρηστών (χωρίς κωδικούς).</span>
+    <button class="btn sm" onclick="downloadBackup()">⬇ Αντίγραφο ασφαλείας</button></div>
+  <div class="plist">${PROJECTS.map(p => `<div class="pitem">
+    <div class="nm"><b>${esc(p.name)}</b>${p.archived ? ' <span class="bdg">αρχείο</span>' : ''}${p.id === PROJ ? ' <span class="bdg b">τρέχον</span>' : ''}
+      <div class="note">${esc(p.client || '')}</div></div>
+    <button class="btn sm" onclick="editProject('${esc(p.id)}')">Ρυθμίσεις</button></div>`).join('') || '<div class="note">Κανένα έργο</div>'}</div>`;
+}
+async function downloadBackup() {
+  try {
+    const data = await api('backup');
+    const blob = new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'plotmanager_backup_' + todayLocal() + '.json';
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    toast(`Αντίγραφο: ${data.projects.length} έργα, ${data.plots.length} οικόπεδα, ${data.reviews.length} παρατηρήσεις`, 'ok');
+  } catch (e) { toast(e.message, 'err'); }
+}
+async function addProject() {
+  try {
+    const p = await api('projects', { method: 'POST', body: { name: $('npName').value, client: $('npClient').value } });
+    await loadProjects(PROJ); toast('Το έργο δημιουργήθηκε', 'ok'); editProject(p.id);
+  } catch (e) { toast(e.message, 'err'); }
+}
+function editProject(id) {
+  const p = PROJECTS.find(x => x.id === id); if (!p) return;
+  const c = { ...DEF_CRITERIA, ...(p.criteria || {}) }, w = { ...DEF_WEIGHTS, ...(p.weights || {}) };
+  const n = (k, v, lbl) => `<label class="fld"><span>${lbl}</span><input type="text" inputmode="decimal" data-pk="${k}" value="${esc(String(v).replace('.', ','))}"></label>`;
+  $('projBody').innerHTML = `
+  <div class="row" style="margin-bottom:10px"><button class="btn sm" onclick="renderProjects()">← Έργα</button></div>
+  <fieldset><legend>Στοιχεία έργου</legend><div class="grid">
+    <label class="fld"><span>Όνομα έργου</span><input type="text" id="epName" value="${esc(p.name)}"></label>
+    <label class="fld"><span>Πελάτης</span><input type="text" id="epClient" value="${esc(p.client || '')}"></label>
+    <label class="fld full"><span>Περιγραφή / σύμβαση</span><textarea id="epDesc" rows="2">${esc(p.description || '')}</textarea></label>
+    <label class="chk"><input type="checkbox" id="epArch" ${p.archived ? 'checked' : ''}><span>Αρχειοθετημένο (ολοκληρώθηκε)</span></label>
+  </div></fieldset>
+  <fieldset><legend>Κριτήρια σύμβασης</legend><div class="grid">
+    ${n('c.center_km', c.center_km, 'Απόσταση από κέντρο &lt; (km)')}${n('c.sea_km', c.sea_km, 'Απόσταση από θάλασσα &lt; (km)')}
+    ${n('c.road_m', c.road_m, 'Πλάτος οδού &gt; (m)')}${n('c.net_ratio', c.net_ratio, 'Λόγος καθαρού / μικτού')}
+    ${n('c.house_min_m2', c.house_min_m2, 'Κατοικία: ελάχ. καθαρό (m²)')}${n('c.house_max_m2', c.house_max_m2, 'Κατοικία: μέγ. καθαρό (m²)')}
+  </div></fieldset>
+  <fieldset><legend>Βάρη βαθμολογίας (%)</legend><div class="grid">
+    ${SCORE_CRITERIA.map(([k, l]) => n('w.' + k, w[k], l)).join('')}
+  </div></fieldset>
+  <div class="row" style="justify-content:space-between">
+    <button class="btn danger sm" onclick="deleteProject('${esc(p.id)}')">Διαγραφή έργου</button>
+    <button class="btn success" onclick="saveProject('${esc(p.id)}')">Αποθήκευση</button>
+  </div>`;
+}
+async function saveProject(id) {
+  const body = { name: $('epName').value, client: $('epClient').value, description: $('epDesc').value, archived: $('epArch').checked, criteria: {}, weights: {} };
+  for (const el of document.querySelectorAll('#projBody [data-pk]')) {
+    const v = parseNum(el.value, true), [g, k] = el.dataset.pk.split('.');
+    const bad = v === null || Number.isNaN(v) || v < 0 || (k === 'net_ratio' && (v < 0.3 || v > 1)) || (g === 'w' && v > 100);
+    el.classList.toggle('invalid', bad);
+    if (bad) return toast(k === 'net_ratio' ? 'Ο λόγος καθαρού/μικτού πρέπει να είναι από 0,3 έως 1' : g === 'w' ? 'Τα βάρη πρέπει να είναι από 0 έως 100' : 'Μη έγκυρη τιμή στα κριτήρια', 'err');
+    (g === 'c' ? body.criteria : body.weights)[k] = v;
+  }
+  try {
+    await api('projects/' + id, { method: 'PUT', body });
+    await loadProjects(PROJ); toast('Το έργο αποθηκεύτηκε', 'ok'); renderProjects();
+    if (id === PROJ) { if (VIEW === 'compare') renderCompare(false); else if (CUR) renderDetail(); else if (VIEW === 'plots') renderList(); }
+  } catch (e) { toast(e.message, 'err'); }
+}
+async function deleteProject(id) {
+  const p = PROJECTS.find(x => x.id === id);
+  if (!confirm(`Διαγραφή του έργου «${p ? p.name : ''}»; (Επιτρέπεται μόνο αν δεν έχει οικόπεδα.)`)) return;
+  try {
+    await api('projects/' + id, { method: 'DELETE' });
+    await loadProjects(id === PROJ ? null : PROJ); toast('Το έργο διαγράφηκε', 'ok'); renderProjects();
+    if (id !== PROJ) return;
+    await loadPlots(); if (VIEW === 'map') renderMapPage(false); else if (VIEW === 'compare') renderCompare(false); else renderList();
+  } catch (e) { toast(e.message, 'err'); }
 }
 
 // ===================== ΧΑΡΤΗΣ =====================
@@ -470,7 +634,9 @@ function plotPopup(p) {
     <span class="note">${esc([p.municipality, p.address].filter(Boolean).join(' — '))}</span><br>
     ${num(p.area) !== null ? fmt(num(p.area)) + ' m²' : ''}${num(p.price) !== null ? ' · ' + fmt(num(p.price), 0) + ' €' : ''}
     <div class="badges" style="margin:4px 0 8px">${st}${p.rejections && p.rejections.length ? `<span class="bdg o">ΑΠΟΡΡΙΨΗ ×${p.rejections.length}</span>` : ''}${p.units ? `<span class="bdg b">${esc(unitsLabel(p.units))}</span>` : ''}</div>
-    <button class="btn primary sm" onclick="openFromMap('${p.id}')">📁 Άνοιγμα φακέλου</button>`;
+    <div class="row" style="gap:6px;flex-wrap:wrap"><button class="btn primary sm" onclick="openFromMap('${p.id}')">📁 Άνοιγμα φακέλου</button>
+    <a class="btn sm" target="_blank" rel="noopener" href="${esc(earthUrl(p))}" title="Google Earth σε 3D">Earth 3D ↗</a>
+    <button class="btn sm" onclick="openKtimatologio('${p.id}')" title="Ανοίγει το maps.ktimatologio.gr κεντραρισμένο στο οικόπεδο${p.kaek ? ' (και αντιγράφει το ΚΑΕΚ)' : ''}">Κτηματολόγιο ↗</button></div>`;
 }
 async function openFromMap(id) { setView('plots'); await openPlot(id); }
 
@@ -507,10 +673,101 @@ function exportMySimpleGIS() {
   const blob = new Blob(['\ufeff' + lines.join('\r\n') + '\r\n'], { type: 'text/csv;charset=utf-8;' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'plotmanager_' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.download = 'plotmanager_' + fileSlug() + todayLocal() + '.csv';
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   toast(`Εξήχθησαν ${list.length} οικόπεδα`, 'ok');
+}
+
+// Άνοιγμα maps.ktimatologio.gr κεντραρισμένου στο οικόπεδο.
+// Ο χάρτης (ArcGIS Experience Builder) δέχεται στο #hash: center:X,Y,102100 (Web Mercator) και level (zoom).
+// Η επιλογή του γεωτεμαχίου γίνεται με αναζήτηση ΚΑΕΚ, γι' αυτό αντιγράφουμε και το ΚΑΕΚ.
+const KTIMA_MAPS = 'https://maps.ktimatologio.gr/?locale=el';
+const KTIMA_LEVEL = 19;
+function ktimaUrl(p) {
+  const lat = num(p.lat), lng = num(p.lng);
+  if (lat === null || lng === null) return KTIMA_MAPS;
+  const R = 6378137, x = R * lng * Math.PI / 180, y = R * Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360));
+  return `${KTIMA_MAPS}#widget_6=active_datasource_id:dataSource_1,center:${x.toFixed(2)}%2C${y.toFixed(2)}%2C102100,level:${KTIMA_LEVEL}`;
+}
+function openKtimatologio(id) {
+  const p = (CUR && (!id || CUR.id === id)) ? CUR : PLOTS.find(x => x.id === id);
+  if (!p) return;
+  const kaek = p.kaek && String(p.kaek).trim(), centered = num(p.lat) !== null && num(p.lng) !== null;
+  // η αντιγραφή ξεκινά πριν ανοίξει η νέα καρτέλα, όσο η σελίδα έχει ακόμη το focus
+  const copy = kaek && navigator.clipboard ? navigator.clipboard.writeText(kaek) : Promise.reject();
+  window.open(ktimaUrl(p), '_blank', 'noopener');
+  const where = centered ? 'Ο χάρτης ανοίγει κεντραρισμένος στο οικόπεδο.' : 'Το οικόπεδο δεν έχει θέση· ο χάρτης ανοίγει χωρίς κεντράρισμα.';
+  if (!kaek) return toast(where, centered ? 'ok' : '');
+  copy.then(() => toast(`${where} Αντιγράφηκε το ΚΑΕΚ ${kaek}: Ctrl+V στην αναζήτηση για επιλογή του γεωτεμαχίου.`, 'ok'))
+      .catch(() => toast(`${where} ΚΑΕΚ για αναζήτηση: ${kaek}`));
+}
+
+// Google Earth (web) σε 3D: η αναζήτηση των συντεταγμένων βάζει πινέζα, η κάμερα @… δίνει λοξή 3D όψη
+// @lat,lng,υψόμετρο(a),απόσταση(d),οπτικό πεδίο(y),αζιμούθιο(h),κλίση(t),περιστροφή(r)
+const EARTH_VIEW = { range: 800, tilt: 55, heading: 0 };
+function earthUrl(p) {
+  const lat = num(p.lat), lng = num(p.lng);
+  if (lat === null || lng === null) return null;
+  const ll = `${lat.toFixed(7)},${lng.toFixed(7)}`;
+  return `https://earth.google.com/web/search/${ll}/@${ll},0a,${EARTH_VIEW.range}d,35y,${EARTH_VIEW.heading}h,${EARTH_VIEW.tilt}t,0r`;
+}
+
+// Εξαγωγή KML (Google Earth, QGIS, mySimpleGIS): ένα Placemark ανά οικόπεδο, φάκελοι ανά φάση
+function exportKML() {
+  const list = mapPlots();
+  if (!list.length) return toast('Δεν υπάρχουν οικόπεδα με θέση για εξαγωγή', 'err');
+  const x = (v) => String(v ?? '').replace(/[<>&'"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c]));
+  const cdata = (v) => '<![CDATA[' + String(v).replace(/]]>/g, ']]]]><![CDATA[>') + ']]>';
+  const kmlColor = (hex) => { const h = hex.replace('#', ''); return 'ff' + h.slice(4, 6) + h.slice(2, 4) + h.slice(0, 2); };  // aabbggrr
+  const proj = curProj();
+  const styles = [...new Set(list.map(plotColor))].map((c) => `
+    <Style id="s${c.slice(1)}"><IconStyle><color>${kmlColor(c)}</color><scale>1.1</scale>
+      <Icon><href>http://maps.google.com/mapfiles/kml/paddle/wht-blank.png</href></Icon><hotSpot x="0.5" y="0" xunits="fraction" yunits="fraction"/></IconStyle>
+      <LabelStyle><scale>0.8</scale></LabelStyle></Style>`).join('');
+  const placemark = (p) => {
+    const e = critEval(p), sc = scoreTotal(p);
+    const rows = [
+      ['Φάση', phaseLabel(phaseOf(p))],
+      ['Περιοχή', [p.municipality, p.address].filter(Boolean).join(' — ')],
+      ['Εμβαδόν', num(p.area) !== null ? fmt(num(p.area)) + ' m²' : ''],
+      ['Τιμή', num(p.price) !== null ? fmt(num(p.price), 0) + ' €' : ''],
+      ['ΚΑΕΚ', p.kaek], ['Ο.Τ.', p.ot], ['Πολεοδομική Ενότητα', p.pol_enotita],
+      ['Κριτήρια σύμβασης', e.all === null ? '' : (e.all ? 'ΝΑΙ' : 'ΟΧΙ') + (e.prelim ? ' (προκαταρκτικά)' : '')],
+      ['Κατοικίες', p.units ? unitsLabel(p.units) : ''],
+      ['Βαθμολογία', sc === null ? '' : fmt(sc, 2) + ' / 10'],
+      ['ΕΓΚΡΙΣΗ', (p.approvals || []).join(', ')], ['ΑΠΟΡΡΙΨΗ', (p.rejections || []).join(', ')],
+      ['Υπεύθυνος', p.contact_name ? (p.contact_type === 'broker' ? 'Μεσίτης: ' : 'Ιδιοκτήτης: ') + p.contact_name + (p.contact_phone ? ' ' + p.contact_phone : '') : ''],
+    ].filter(([, v]) => v);
+    // το «; » πριν το <br> κρατά τις γραμμές χωριστές και όταν κάποιο πρόγραμμα αφαιρεί τα HTML tags
+    const desc = rows.map(([k, v]) => `<b>${x(k)}:</b> ${x(v)}; <br>`).join('');
+    const data = { code: p.code, title: p.title, phase: phaseLabel(phaseOf(p)), area_m2: num(p.area), price_eur: num(p.price),
+      kaek: p.kaek, ot: p.ot, pol_enotita: p.pol_enotita, municipality: p.municipality, score: sc === null ? '' : +sc.toFixed(2) };
+    return `
+      <Placemark><name>${x([p.code, p.title].filter(Boolean).join(' '))}</name>
+        <description>${cdata(desc)}</description><styleUrl>#s${plotColor(p).slice(1)}</styleUrl>
+        <ExtendedData>${Object.entries(data).filter(([, v]) => v !== null && v !== undefined && v !== '').map(([k, v]) => `<Data name="${k}"><value>${x(v)}</value></Data>`).join('')}</ExtendedData>
+        <Point><coordinates>${num(p.lng)},${num(p.lat)},0</coordinates></Point></Placemark>`;
+  };
+  const folders = PHASES.map(([ph, label]) => {
+    const items = list.filter((p) => phaseOf(p) === ph);
+    return items.length ? `\n    <Folder><name>${x(label)} (${items.length})</name>${items.map(placemark).join('')}\n    </Folder>` : '';
+  }).join('');
+  const kml = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>${x('PlotManager' + (proj ? ' – ' + proj.name : ''))}</name>
+    <description>${x((proj && proj.client ? 'Πελάτης: ' + proj.client + ' · ' : '') + 'Εξαγωγή ' + fmtDate(todayLocal()))}</description>${styles}${folders}
+  </Document>
+</kml>
+`;
+  const blob = new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'plotmanager_' + fileSlug() + todayLocal() + '.kml';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  toast(`Εξήχθησαν ${list.length} οικόπεδα σε KML`, 'ok');
 }
 
 // ===================== ΣΥΓΚΡΙΤΙΚΟΣ ΠΙΝΑΚΑΣ (Ε.2) =====================
@@ -530,7 +787,7 @@ const CMP_COLS = [
   { h: 'Κάλυψη (%)', v: p => num(p.coverage), d: 0 },
   { h: 'Αξιοπ. δόμηση (m²)', v: (p, x) => x.c.usable, d: 1 },
   { h: 'Κατοικίες (εκτίμηση)', v: p => p.units ? unitsLabel(p.units) : '' },
-  { h: `Χωρούν κατοικίες ≥${CFG.contract.house_min_m2} m² καθ.`, v: (p, x) => x.c.housesFit, d: 0 },
+  { get h() { return `Χωρούν κατοικίες ≥${CFG.contract.house_min_m2} m² καθ.`; }, v: (p, x) => x.c.housesFit, d: 0 },
   { h: 'Απόσταση κέντρο (km)', v: (p, x) => x.k.dc, d: 2 },
   { h: 'Απόσταση θάλασσα (km)', v: (p, x) => x.k.ds, d: 2 },
   { h: 'Πλάτος οδού (m)', v: (p, x) => x.k.rw, d: 1 },
@@ -559,7 +816,7 @@ async function renderCompare(reload) {
   const withRej = $('cmpRej') ? $('cmpRej').checked : false;
   const cols = cmpCols(), rows = cmpRows();
   $('compare').innerHTML = `
-    <div class="cmp-bar"><h2>Συγκριτικός Πίνακας <span class="note">(${rows.length})</span></h2>
+    <div class="cmp-bar"><h2>Συγκριτικός Πίνακας${curProj() ? ' · ' + esc(curProj().name) : ''} <span class="note">(${rows.length})</span></h2>
       <label class="chk"><input type="checkbox" id="cmpRej" ${withRej ? 'checked' : ''} onchange="renderCompare(false)"><span>Με τα απορριφθέντα</span></label>
       ${isAdmin() ? `<label class="chk" title="Για εσωτερική χρήση· το Excel του παραδοτέου δεν πρέπει να έχει ώρες"><input type="checkbox" id="cmpHours" ${$('cmpHours') && $('cmpHours').checked ? 'checked' : ''}><span>Ώρες στο Excel</span></label>` : ''}
       <button class="btn primary sm" onclick="exportExcel()">⬇ Excel</button></div>
@@ -595,13 +852,17 @@ async function exportExcel() {
     ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: data.length - 1, c: cols.length - 1 } }) };
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Συγκριτικός Πίνακας');
-    XLSX.writeFile(wb, 'plotmanager_sygkritikos_' + new Date().toISOString().slice(0, 10) + '.xlsx');
+    XLSX.writeFile(wb, 'plotmanager_' + fileSlug() + 'sygkritikos_' + todayLocal() + '.xlsx');
     toast(`Εξήχθησαν ${rows.length} οικόπεδα`, 'ok');
   } catch (e) { toast(e.message, 'err'); }
 }
 
 // ===================== ΛΙΣΤΑ ΟΙΚΟΠΕΔΩΝ =====================
-async function loadPlots() { PLOTS = await api('plots'); }
+async function loadPlots() {
+  const pid = PROJ;
+  const list = pid ? await api('plots?project=' + encodeURIComponent(pid)) : [];
+  if (pid === PROJ) PLOTS = list;          // αν στο μεταξύ άλλαξε έργο, αγνοούμε την παλιά απάντηση
+}
 
 function plotBadges(p) {
   const b = [phaseBadge(p)];
@@ -637,7 +898,7 @@ function renderList() {
     .map(([k, t]) => `<button class="chip ${FILTER === k ? 'on' : ''}" onclick="FILTER='${k}';renderList()">${t}</button>`).join('');
   $('panel').innerHTML = `
     <div class="ph"><h2>Επιλογή Οικοπέδων <span class="note">(${PLOTS.length})</span></h2>
-      ${isAdmin() ? '<button class="btn primary sm" onclick="newPlot()">+ Νέο οικόπεδο</button>' : ''}
+      ${isAdmin() && PROJ ? '<button class="btn primary sm" onclick="newPlot()">+ Νέο οικόπεδο</button>' : ''}
       <button class="btn sm" title="Ανανέωση" onclick="refreshList()">⟳</button></div>
     <div class="filters"><input type="text" placeholder="Αναζήτηση (τίτλος, περιοχή, ΚΑΕΚ, Ο.Τ.…)" value="${esc(SEARCH)}" oninput="SEARCH=this.value;renderListItems()">${chips}</div>
     <div class="pbody" id="listBody"></div>`;
@@ -656,23 +917,27 @@ function renderListItems() {
         <div class="s">${num(p.area) !== null ? fmt(num(p.area)) + ' m²' : ''}${num(p.price) !== null ? ' · ' + fmt(num(p.price), 0) + ' €' : ''}${num(p.lat) === null ? ' · <span style="color:var(--orange)">χωρίς θέση</span>' : ''}</div>
         <div class="badges">${plotBadges(p)}</div>
       </div>
-    </div>`).join('') : `<div class="empty">${PLOTS.length ? 'Κανένα αποτέλεσμα' : (isAdmin() ? 'Δεν υπάρχουν οικόπεδα ακόμη.<br>Πατήστε «+ Νέο οικόπεδο».' : 'Δεν υπάρχουν οικόπεδα ακόμη.')}</div>`;
+    </div>`).join('') : `<div class="empty">${!PROJ ? (isAdmin() ? 'Δεν υπάρχει έργο.<br>Δημιουργήστε ένα από το «⚙ Έργα».' : 'Δεν έχετε πρόσβαση σε κανένα έργο.<br>Επικοινωνήστε με τον διαχειριστή.') : PLOTS.length ? 'Κανένα αποτέλεσμα' : (isAdmin() ? 'Δεν υπάρχουν οικόπεδα σε αυτό το έργο.<br>Πατήστε «+ Νέο οικόπεδο».' : 'Δεν υπάρχουν οικόπεδα ακόμη.')}</div>`;
 }
 async function refreshList() { try { await loadPlots(); renderList(); } catch (e) { toast(e.message, 'err'); } }
 
 async function newPlot() {
   try {
     const n = PLOTS.reduce((m, p) => { const x = /(\d+)\s*$/.exec(p.code || ''); return x ? Math.max(m, +x[1]) : m; }, 0) + 1;
-    const p = await api('plots', { method: 'POST', body: { code: 'Ο-' + String(n).padStart(2, '0'), title: 'Νέο οικόπεδο' } });
+    if (!PROJ) return toast('Δημιουργήστε πρώτα ένα έργο (⚙ Έργα)', 'err');
+    const p = await api('plots', { method: 'POST', body: { project: PROJ, code: 'Ο-' + String(n).padStart(2, '0'), title: 'Νέο οικόπεδο' } });
     await loadPlots(); await openPlot(p.id); setTab('info');
   } catch (e) { toast(e.message, 'err'); }
 }
 
 // ===================== ΛΕΠΤΟΜΕΡΕΙΕΣ ΟΙΚΟΠΕΔΟΥ =====================
+let OPEN_SEQ = 0;
 async function openPlot(id) {
   if (DIRTY && !confirm('Υπάρχουν μη αποθηκευμένες αλλαγές. Να απορριφθούν;')) return;
+  const seq = ++OPEN_SEQ;
   try {
     const d = await api('plots/' + id);
+    if (seq !== OPEN_SEQ) return;          // πατήθηκε στο μεταξύ άλλο οικόπεδο
     CUR = d.plot; CUR_REVIEWS = d.reviews || []; DIRTY = false; PICK = false; $('map').classList.remove('picking');
     CUR.phase = CUR.phase || 'A'; CUR.tasks = CUR.tasks || {}; CUR.checks = CUR.checks || {}; CUR.scores = CUR.scores || {};
     if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
@@ -697,7 +962,7 @@ function renderDetail() {
     let c = '';
     if (k === 'diary' && CUR.events?.length) c = CUR.events.length;
     if (k === 'files' && CUR.links?.length) c = CUR.links.length;
-    if (k === 'review' && CUR_REVIEWS.length) c = CUR_REVIEWS.length;
+    if (k === 'review') { const n = CUR_REVIEWS.filter(r => !r.foreign).length; if (n) c = n; }
     if (k === 'tasks') { const ts = taskStats(CUR); c = `${ts.A.d + ts.B.d}/${ts.A.n + ts.B.n}`; }
     if (k === 'tech') { const cs = checksSummary(CUR); if (cs.problem) c = '⚠' + cs.problem; }
     return `<button class="tab ${TAB === k ? 'active' : ''}" onclick="setTab('${k}')">${t}${c ? `<span class="cnt">${c}</span>` : ''}</button>`;
@@ -791,6 +1056,7 @@ function tabInfo(b) {
   const ct = CUR.contact_type || 'owner';
   b.innerHTML = `
   <fieldset><legend>Γενικά</legend><div class="grid">
+    ${isAdmin() && PROJECTS.length > 1 ? F('Έργο', 'project', 'select', { options: PROJECTS.map(p => [p.id, p.name]), full: true }) : ''}
     ${F('Κωδικός φακέλου', 'code')}${F('Τίτλος', 'title')}
     ${F('Διεύθυνση / θέση', 'address', 'text', { full: true })}
     ${F('Δήμος / περιοχή', 'municipality')}${F('Εμβαδόν (m²)', 'area', 'num')}
@@ -802,6 +1068,7 @@ function tabInfo(b) {
     ${F('Ο.Τ. (οικοδομικό τετράγωνο)', 'ot')}${F('Πολεοδομική Ενότητα', 'pol_enotita')}
     ${F('ΚΑΕΚ', 'kaek', 'text', { full: true })}
   </div>
+  ${CUR.kaek ? `<div style="margin-top:6px"><button class="btn sm" onclick="openKtimatologio()">Άνοιγμα ΚΑΕΚ στο Κτηματολόγιο ↗</button></div>` : ''}
   <div id="kaekWarn" class="note bad ${kaekOk(CUR.kaek) ? 'hidden' : ''}" style="margin-top:4px">Το ΚΑΕΚ συνήθως έχει 12 ψηφία (π.χ. 050681203001), ή 12 ψηφία με /x/x για οριζόντιες ιδιοκτησίες.</div>
   </fieldset>
 
@@ -819,6 +1086,8 @@ function tabInfo(b) {
     ${isAdmin() ? '<button class="btn primary sm" onclick="startPick()">📍 Ορισμός από τον χάρτη</button>' : ''}
     ${has ? `<button class="btn sm" onclick="map.setView([${lat},${lng}],18)">Εστίαση</button>
       <a class="btn sm" target="_blank" rel="noopener" href="https://www.google.com/maps?q=${lat},${lng}">Google Maps ↗</a>` : '<span class="note">Δεν έχει οριστεί θέση</span>'}
+    ${has ? `<a class="btn sm" target="_blank" rel="noopener" href="${esc(earthUrl(CUR))}" title="Google Earth σε 3D με πινέζα στο οικόπεδο">Google Earth 3D ↗</a>` : ''}
+    ${has || CUR.kaek ? `<button class="btn sm" onclick="openKtimatologio()" title="Ανοίγει το maps.ktimatologio.gr κεντραρισμένο στο οικόπεδο (και αντιγράφει το ΚΑΕΚ)">Κτηματολόγιο ↗</button>` : ''}
   </div></fieldset>
 
   <fieldset><legend>Υπεύθυνος επικοινωνίας</legend>
@@ -942,9 +1211,10 @@ function printReport() {
   if (has && window.proj4) { const [x, y] = proj4('EPSG:4326', 'EPSG:2100', [lng, lat]); egsa = `X = ${x.toFixed(2)} &nbsp; Y = ${y.toFixed(2)}`; }
   const ppm = num(P.price) !== null && num(P.area) ? fmt(num(P.price) / num(P.area), 0) + ' €/m²' : '—';
   const zone = (ZONES.find(z => z[0] === String(P.zone ?? '')) || [, ''])[1] || '—';
-  const rej = CUR_REVIEWS.filter(r => r.rejected);
+  const REVS = CUR_REVIEWS.filter(r => !r.foreign);   // η αναφορά πάει στον πελάτη: μόνο παρατηρήσεις του έργου του
+  const rej = REVS.filter(r => r.rejected);
   const PH = PHASES.find(y => y[0] === phaseOf(P)) || PHASES[0];
-  const apv = CUR_REVIEWS.filter(r => r.approved);
+  const apv = REVS.filter(r => r.approved);
   const badges = [
     `<span class="bdg ${PH[2]}">Φάση: ${PH[1]}</span>`,
     apv.length ? `<span class="bdg p">ΕΓΚΡΙΣΗ από ${apv.length} χρήστη/ες</span>` : '',
@@ -1023,7 +1293,7 @@ footer{margin-top:18px;padding-top:6px;border-top:1px solid #d0d7de;font-size:8.
 </div>
 <div class="sheet">
 <header>
-  <div><div class="app">PlotManager · Αναφορά οικοπέδου</div>
+  <div><div class="app">PlotManager · Αναφορά οικοπέδου${curProj() ? ' · ' + esc(curProj().name) + (curProj().client ? ' (' + esc(curProj().client) + ')' : '') : ''}</div>
     <h1>${P.code ? esc(P.code) + ' · ' : ''}${esc(P.title || '')}</h1>
     <div class="badges">${badges}</div></div>
   <div class="meta">${now}<br>${esc(ME.name || ME.username)}</div>
@@ -1044,7 +1314,7 @@ ${P.pe_notes ? `<div style="margin-top:4px"><span class="note">Σημειώσε�
 </section>
 
 <section><h2>2. Θέση</h2>
-${kv([['WGS84 (φ, λ)', has ? `${lat.toFixed(6)}, ${lng.toFixed(6)}` : '—'], ["ΕΓΣΑ'87", egsa], ['Google Maps', has ? `<a href="https://www.google.com/maps?q=${lat},${lng}">maps.google.com/?q=${lat},${lng}</a>` : '—']])}
+${kv([['WGS84 (φ, λ)', has ? `${lat.toFixed(6)}, ${lng.toFixed(6)}` : '—'], ["ΕΓΣΑ'87", egsa], ['Google Maps', has ? `<a href="https://www.google.com/maps?q=${lat},${lng}">maps.google.com/?q=${lat},${lng}</a>` : '—'], ['Κτηματολόγιο', has ? `<a href="${esc(ktimaUrl(P))}">maps.ktimatologio.gr (κεντραρισμένο)</a>` : '—'], ['Google Earth', has ? `<a href="${esc(earthUrl(P))}">3D όψη με πινέζα</a>` : '—']])}
 ${has ? '<div id="rmap"></div>' : '<div class="empty">Δεν έχει οριστεί θέση στον χάρτη.</div>'}
 </section>
 
@@ -1111,7 +1381,7 @@ ${docs.map(l => `<tr><td>${esc(l.title)}</td><td class="url"><a href="${esc(l.ur
 </section>
 
 <section><h2>12. Παρατηρήσεις και αποφάσεις πελάτη</h2>
-${CUR_REVIEWS.length ? CUR_REVIEWS.map(r => `<div class="rev ${r.rejected ? 'rj' : ''}"><div class="hd"><b>${esc(r.name || r.username)}</b> · ${fmtDT(r.updated)}${r.rejected ? ' · <b class="bad">ΑΠΟΡΡΙΨΗ</b>' : ''}${r.approved ? ' · <b style="color:#8250df">ΕΓΚΡΙΣΗ για Τμήμα Β</b>' : ''}</div>${r.remarks ? `<div class="pre">${esc(r.remarks)}</div>` : ''}</div>`).join('')
+${REVS.length ? REVS.map(r => `<div class="rev ${r.rejected ? 'rj' : ''}"><div class="hd"><b>${esc(r.name || r.username)}</b> · ${fmtDT(r.updated)}${r.rejected ? ' · <b class="bad">ΑΠΟΡΡΙΨΗ</b>' : ''}${r.approved ? ' · <b style="color:#8250df">ΕΓΚΡΙΣΗ για Τμήμα Β</b>' : ''}</div>${r.remarks ? `<div class="pre">${esc(r.remarks)}</div>` : ''}</div>`).join('')
   : '<div class="empty">Καμία παρατήρηση.</div>'}
 </section>
 
@@ -1233,7 +1503,8 @@ function econCalc(P) {
 
 // --- καρτέλα Εργασίες ---
 function tabTasks(b) {
-  const ap = CUR_REVIEWS.filter(r => r.approved), rj = CUR_REVIEWS.filter(r => r.rejected);
+  const own = CUR_REVIEWS.filter(r => !r.foreign);   // αποφάσεις μόνο από το τρέχον έργο
+  const ap = own.filter(r => r.approved), rj = own.filter(r => r.rejected);
   const names = (a) => a.map(r => r.name || r.username).join(', ');
   b.innerHTML = `
   <fieldset><legend>Φάση</legend><div class="grid">
@@ -1280,7 +1551,7 @@ function applyPhaseRules(ph) {
   if (ph !== 'B') return;
   const t = CUR.tasks.B2 = CUR.tasks.B2 || {};       // η έγκριση του πελάτη ολοκληρώνει το Β.2
   if (t.status !== 'done') { t.status = 'done'; t.date = t.date || todayLocal(); }
-  const names = CUR_REVIEWS.filter(r => r.approved).map(r => r.name || r.username);
+  const names = CUR_REVIEWS.filter(r => r.approved && !r.foreign).map(r => r.name || r.username);
   if (!t.notes) t.notes = names.length ? 'Έγκριση: ' + names.join(', ') : 'Έναρξη Τμήματος Β από τον διαχειριστή';
 }
 async function setPhase(ph) { CUR.phase = ph; applyPhaseRules(ph); markDirty(); await savePlot(); }
@@ -1464,7 +1735,8 @@ function tabReview(b) {
   <h4 style="margin:6px 0">Παρατηρήσεις όλων (${others.length})</h4>
   ${others.length ? others.map(r => `
     <div class="rev"><div class="hd"><b>${esc(r.name || r.username)}</b><span>${fmtDT(r.updated)}</span>
-      ${r.rejected ? '<span class="bdg r">ΑΠΟΡΡΙΨΗ</span>' : ''}${r.approved ? '<span class="bdg p">ΕΓΚΡΙΣΗ</span>' : ''}</div>
+      ${r.rejected ? '<span class="bdg r">ΑΠΟΡΡΙΨΗ</span>' : ''}${r.approved ? '<span class="bdg p">ΕΓΚΡΙΣΗ</span>' : ''}
+      ${r.foreign ? '<span class="bdg" title="Γράφτηκε πριν μεταφερθεί το οικόπεδο· δεν τη βλέπουν οι χρήστες του τρέχοντος έργου και δεν μετρά">από προηγούμενο έργο</span>' : ''}</div>
       ${r.remarks ? `<div class="tx">${esc(r.remarks)}</div>` : ''}</div>`).join('') : '<div class="note">Καμία άλλη παρατήρηση</div>'}`;
 }
 async function saveReview() {
@@ -1481,7 +1753,7 @@ const PLOT_FIELDS = ['code','title','address','municipality','area','price','kae
   'zone','sd','coverage','max_height','max_floors','frontage','min_area','min_frontage','units','terms_notes',
   'phase','dist_center','dist_sea','road_width_plan','road_width_site','access_metro','access_tram','access_bus','access_notes',
   'market_notes','new_sale_m2','build_cost_m2','other_costs','tasks','checks','scores','crit_dist_sea',
-  'ot','pol_enotita','pe_number','pe_decision','pe_date','pe_registry','pe_notes'];
+  'ot','pol_enotita','pe_number','pe_decision','pe_date','pe_registry','pe_notes','project'];
 async function savePlot(force) {
   if (CUR.dropbox && !/^https?:\/\//i.test(CUR.dropbox)) return toast('Ο σύνδεσμος Dropbox πρέπει να ξεκινά με https://', 'err');
   if (document.querySelector('#tabBody input.invalid')) return toast('Διορθώστε τα πεδία με κόκκινο περίγραμμα (μη έγκυρος ή αρνητικός αριθμός, βαθμός πάνω από 10).', 'err');
@@ -1492,6 +1764,10 @@ async function savePlot(force) {
     const p = await api('plots/' + CUR.id, { method: 'PUT', body });
     CUR = { ...CUR, ...p }; DIRTY = false;
     if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
+    if (CUR.project !== PROJ) {                     // μεταφέρθηκε σε άλλο έργο
+      const to = PROJECTS.find(x => x.id === CUR.project);
+      await loadPlots(); renderList(); return toast(`Το οικόπεδο μεταφέρθηκε στο έργο «${to ? to.name : ''}»`, 'ok');
+    }
     await loadPlots(); renderDetail(); renderMarkers(); toast('Αποθηκεύτηκε', 'ok');
   } catch (e) {
     if (e.status === 409) {
@@ -1520,20 +1796,22 @@ async function openUsers() {
 }
 async function renderUsers() {
   let list;
-  try { list = await api('users'); } catch (e) { $('usersBody').innerHTML = `<span class="bad">${esc(e.message)}</span>`; return; }
+  try { list = USERS_CACHE = await api('users'); } catch (e) { $('usersBody').innerHTML = `<span class="bad">${esc(e.message)}</span>`; return; }
   $('usersBody').innerHTML = `
   <fieldset><legend>Νέος χρήστης</legend><div class="grid">
     <label class="fld"><span>Όνομα χρήστη (λατινικά)</span><input type="text" id="nuUser" autocapitalize="none"></label>
     <label class="fld"><span>Ονοματεπώνυμο</span><input type="text" id="nuName"></label>
     <label class="fld"><span>Κωδικός (≥ 6)</span><input type="text" id="nuPass"></label>
     <label class="fld"><span>Ρόλος</span><select id="nuRole"><option value="user">Χρήστης</option><option value="admin">Διαχειριστής</option></select></label>
+    <div class="fld full"><span>Πρόσβαση σε έργα</span><div class="pchips">${PROJECTS.map(p => `<label><input type="checkbox" class="nuProj" value="${esc(p.id)}" ${p.id === PROJ ? 'checked' : ''}>${esc(p.name)}</label>`).join('')}</div></div>
     <div class="full row" style="justify-content:flex-end"><button class="btn primary sm" onclick="addUser()">Δημιουργία</button></div>
   </div></fieldset>
   ${ME.env ? '<div class="note" style="margin-bottom:8px">Είστε συνδεδεμένος ως κύριος διαχειριστής (ορίζεται από τις ρυθμίσεις του Netlify και δεν εμφανίζεται εδώ).</div>' : ''}
-  <table class="users"><tr><th>Χρήστης</th><th>Όνομα</th><th>Ρόλος</th><th>Ενεργός</th><th></th></tr>
+  <table class="users"><tr><th>Χρήστης</th><th>Όνομα</th><th>Ρόλος</th><th>Έργα</th><th>Ενεργός</th><th></th></tr>
   ${list.map(u => `<tr>
     <td>${esc(u.username)}</td><td>${esc(u.name)}</td>
     <td><select onchange="patchUser('${esc(u.username)}',{role:this.value})"><option value="user" ${u.role === 'user' ? 'selected' : ''}>Χρήστης</option><option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Διαχειριστής</option></select></td>
+    <td>${u.role === 'admin' ? '<span class="note">όλα</span>' : `<div class="pchips">${PROJECTS.map(p => `<label><input type="checkbox" ${(u.projects || []).includes(p.id) ? 'checked' : ''} onchange="toggleUserProj('${esc(u.username)}','${esc(p.id)}',this.checked)">${esc(p.name)}</label>`).join('')}</div>`}</td>
     <td><input type="checkbox" ${u.active ? 'checked' : ''} onchange="patchUser('${esc(u.username)}',{active:this.checked})"></td>
     <td class="row"><button class="btn sm" onclick="resetPw('${esc(u.username)}')">Κωδικός</button>
       <button class="btn danger sm" onclick="delUser('${esc(u.username)}')">✕</button></td></tr>`).join('') || '<tr><td colspan="5" class="note">Κανένας χρήστης</td></tr>'}
@@ -1541,13 +1819,20 @@ async function renderUsers() {
 }
 async function addUser() {
   try {
-    await api('users', { method: 'POST', body: { username: $('nuUser').value, name: $('nuName').value, password: $('nuPass').value, role: $('nuRole').value } });
+    await api('users', { method: 'POST', body: { username: $('nuUser').value, name: $('nuName').value, password: $('nuPass').value, role: $('nuRole').value, projects: [...document.querySelectorAll('.nuProj:checked')].map(x => x.value) } });
     toast('Ο χρήστης δημιουργήθηκε', 'ok'); await renderUsers();
   } catch (e) { toast(e.message, 'err'); }
 }
 async function patchUser(u, body) {
   try { await api('users/' + encodeURIComponent(u), { method: 'PATCH', body }); toast('Ενημερώθηκε', 'ok'); }
   catch (e) { toast(e.message, 'err'); await renderUsers(); }
+}
+let USERS_CACHE = [];
+async function toggleUserProj(u, pid, on) {
+  const rec = USERS_CACHE.find(x => x.username === u); if (!rec) return;
+  const set = new Set(rec.projects || []); on ? set.add(pid) : set.delete(pid);
+  rec.projects = [...set];
+  await patchUser(u, { projects: rec.projects });
 }
 async function resetPw(u) {
   const pw = prompt(`Νέος κωδικός για τον χρήστη «${u}» (τουλάχιστον 6 χαρακτήρες):`);
@@ -1575,6 +1860,24 @@ async function changePw() {
     TOKEN = d.token; localStorage.setItem('pm_token', TOKEN); closeModal(); toast('Ο κωδικός άλλαξε', 'ok');
   } catch (e) { toast(e.message, 'err'); }
 }
+
+// ===================== ΕΓΚΑΤΑΣΤΑΣΗ (PWA) =====================
+let installEvt = null;
+const showInstall = (on) => document.querySelectorAll('.installBtn').forEach(b => b.classList.toggle('hidden', !on));
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvt = e; showInstall(true); });
+window.addEventListener('appinstalled', () => { installEvt = null; showInstall(false); toast('Η εφαρμογή εγκαταστάθηκε', 'ok'); });
+async function installApp() {
+  if (!installEvt) return;
+  installEvt.prompt();
+  try { await installEvt.userChoice; } catch {}
+  installEvt = null; showInstall(false);
+}
+(() => {   // iPhone/iPad: δεν υπάρχει κουμπί εγκατάστασης, μόνο μέσω Κοινοποίησης
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const standalone = window.navigator.standalone || matchMedia('(display-mode: standalone)').matches;
+  if (ios && !standalone) $('iosHint').classList.remove('hidden');
+})();
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
 
 boot();
 </script>

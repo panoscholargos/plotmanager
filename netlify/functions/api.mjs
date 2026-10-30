@@ -39,6 +39,9 @@ const ENUMS = {
   zone: ["", "entos", "oikismos", "ektos", "other"],
   units: ["", "0", "2", "3", "2-3"],
 };
+// Προεπιλεγμένα κριτήρια σύμβασης και βάρη βαθμολογίας για νέα έργα
+const DEF_CRITERIA = { center_km: 2, sea_km: 4, road_m: 8, house_min_m2: 170, house_max_m2: 220, net_ratio: 0.85 };
+const DEF_WEIGHTS = { loc: 25, plan: 25, tech: 20, econ: 20, env: 10 };
 const MAX_FAILS = 8, LOCK_MS = 15 * 60 * 1000; // κλείδωμα σύνδεσης μετά από αποτυχίες
 class HttpError extends Error { constructor(msg, status = 400) { super(msg); this.status = status; } }
 const TASK_STATUS = ["", "progress", "done", "na"];
@@ -110,8 +113,10 @@ async function authenticate(req, s) {
   }
   const rec = await s.get("users/" + p.u, { type: "json" });
   if (!rec || !rec.active || p.pv !== pwVersion(rec)) return null;
-  return { username: rec.username, name: rec.name, role: rec.role };
+  return { username: rec.username, name: rec.name, role: rec.role, projects: Array.isArray(rec.projects) ? rec.projects : [] };
 }
+// Ο διαχειριστής βλέπει όλα τα έργα· ο χρήστης μόνο όσα του έχουν ανατεθεί
+const canSee = (me, pid) => me.role === "admin" || (!!pid && (me.projects || []).includes(pid));
 
 async function login(s, body) {
   const u = norm(body.username), pw = String(body.password || "");
@@ -150,7 +155,11 @@ async function login(s, body) {
   return ok({ u, pv: pwVersion(rec) }, { username: u, name: rec.name, role: rec.role });
 }
 // ---------- βοηθητικά ----------
-const publicUser = (r) => ({ username: r.username, name: r.name, role: r.role, active: r.active, created: r.created });
+const numOrNull = (x, min, max) => {
+  const n = typeof x === "number" ? x : (x === "" || x == null ? null : Number(x));
+  return n === null || !Number.isFinite(n) ? null : Math.min(max, Math.max(min, n));
+};
+const publicUser = (r) => ({ username: r.username, name: r.name, role: r.role, active: r.active, created: r.created, projects: Array.isArray(r.projects) ? r.projects : [] });
 
 function cleanPlot(body) {
   const o = {};
@@ -182,10 +191,6 @@ function cleanPlot(body) {
   if (o.lat != null && (o.lat < -90 || o.lat > 90)) throw new HttpError("Μη έγκυρο γεωγραφικό πλάτος");
   if (o.lng != null && (o.lng < -180 || o.lng > 180)) throw new HttpError("Μη έγκυρο γεωγραφικό μήκος");
   if ((o.lat == null) !== (o.lng == null) && "lat" in o && "lng" in o) throw new HttpError("Συμπληρώστε και τις δύο συντεταγμένες");
-  const numOrNull = (x, min, max) => {
-    const n = typeof x === "number" ? x : (x === "" || x == null ? null : Number(x));
-    return n === null || !Number.isFinite(n) ? null : Math.min(max, Math.max(min, n));
-  };
   // Εργασίες σύμβασης: { A1: {status, date, hours, notes}, ... }
   if (body.tasks && typeof body.tasks === "object") {
     o.tasks = {};
@@ -228,6 +233,105 @@ async function getAll(s, prefix) {
   return (await Promise.all(blobs.map((b) => s.get(b.key, { type: "json" })))).filter(Boolean);
 }
 
+// ---------- έργα ----------
+function cleanProject(b, base = {}) {
+  const o = {};
+  if ("name" in b) { o.name = str(b.name, 120).trim(); if (!o.name) throw new HttpError("Το έργο θέλει όνομα"); }
+  for (const k of ["client", "description"]) if (k in b) o[k] = str(b[k], 2000);
+  if ("archived" in b) o.archived = !!b.archived;
+  if (b.criteria && typeof b.criteria === "object") {
+    const c = { ...DEF_CRITERIA, ...(base.criteria || {}) };
+    for (const k of Object.keys(DEF_CRITERIA)) if (k in b.criteria) {
+      const [lo, hi] = k === "net_ratio" ? [0.3, 1] : [0, 100000];
+      const v = numOrNull(b.criteria[k], -Infinity, Infinity);
+      if (v === null || v < lo || v > hi) throw new HttpError(k === "net_ratio" ? "Ο λόγος καθαρού/μικτού πρέπει να είναι από 0,3 έως 1" : "Μη έγκυρη τιμή κριτηρίου έργου");
+      c[k] = v;
+    }
+    if (c.house_max_m2 < c.house_min_m2) throw new HttpError("Το μέγιστο εμβαδόν κατοικίας είναι μικρότερο από το ελάχιστο");
+    o.criteria = c;
+  }
+  if (b.weights && typeof b.weights === "object") {
+    const w = { ...DEF_WEIGHTS, ...(base.weights || {}) };
+    for (const k of Object.keys(DEF_WEIGHTS)) if (k in b.weights) {
+      const v = numOrNull(b.weights[k], -Infinity, Infinity);
+      if (v === null || v < 0 || v > 100) throw new HttpError("Τα βάρη βαθμολογίας πρέπει να είναι από 0 έως 100");
+      w[k] = v;
+    }
+    if (!Object.values(w).some((x) => x > 0)) throw new HttpError("Τουλάχιστον ένα βάρος πρέπει να είναι πάνω από 0");
+    o.weights = w;
+  }
+  return o;
+}
+const newProject = (b, me) => ({
+  id: crypto.randomUUID(), name: "Νέο έργο", client: "", description: "", archived: false,
+  criteria: { ...DEF_CRITERIA }, weights: { ...DEF_WEIGHTS },
+  ...b, created: now(), created_by: me ? me.username : "system",
+});
+const getProject = (s, id) => (validId(id) ? s.get("projects/" + id, { type: "json" }) : null);
+
+// Μετάπτωση από την έκδοση χωρίς έργα: όλα τα υπάρχοντα οικόπεδα και οι χρήστες πάνε σε ένα πρώτο έργο
+let migrated = false;
+async function ensureMigrated(s) {
+  if (migrated) return;
+  if (await s.get("meta/v2", { type: "json" })) { migrated = true; return; }
+  const projects = await getAll(s, "projects/");
+  let def = projects.sort((a, b) => String(a.created).localeCompare(String(b.created)))[0];
+  if (!def) {
+    // σταθερό id: αν δύο αιτήματα κάνουν ταυτόχρονα μετάπτωση, γράφουν το ίδιο έργο και όχι δύο
+    def = (await s.get("projects/default-project-0001", { type: "json" })) || { ...newProject({ name: "Έργο 1" }), id: "default-project-0001" };
+    await s.setJSON("projects/" + def.id, def);
+  }
+  for (const p of await getAll(s, "plots/")) if (!p.project) { p.project = def.id; await s.setJSON("plots/" + p.id, p); }
+  for (const u of await getAll(s, "users/")) if (!Array.isArray(u.projects)) { u.projects = [def.id]; await s.setJSON("users/" + u.username, u); }
+  await s.setJSON("meta/v2", { at: now(), default_project: def.id });
+  migrated = true;
+}
+
+async function projects(s, me, req, parts, body) {
+  const m = req.method, id = parts[1], admin = me.role === "admin";
+  if (!id) {
+    if (m === "GET") {
+      const list = (await getAll(s, "projects/")).filter((p) => canSee(me, p.id))
+        .sort((a, b) => Number(!!a.archived) - Number(!!b.archived) || String(a.created).localeCompare(String(b.created)));
+      return json(list);
+    }
+    if (m === "POST") {
+      if (!admin) return err("Μόνο για διαχειριστή", 403);
+      const p = newProject(cleanProject({ name: body.name || "Νέο έργο", ...body }), me);
+      await s.setJSON("projects/" + p.id, p);
+      return json(p, 201);
+    }
+    return err("Μη επιτρεπτή μέθοδος", 405);
+  }
+  const proj = await getProject(s, id);
+  if (!proj || !canSee(me, proj.id)) return err("Το έργο δεν βρέθηκε", 404);
+  if (m === "GET") return json(proj);
+  if (!admin) return err("Μόνο για διαχειριστή", 403);
+  if (m === "PUT") {
+    Object.assign(proj, cleanProject(body, proj), { updated: now(), updated_by: me.username });
+    await s.setJSON("projects/" + proj.id, proj);
+    return json(proj);
+  }
+  if (m === "DELETE") {
+    const count = (await getAll(s, "plots/")).filter((p) => p.project === proj.id).length;
+    if (count) return err(`Το έργο έχει ${count} οικόπεδα. Μεταφέρετε ή διαγράψτε τα πρώτα.`);
+    for (const u of await getAll(s, "users/")) {
+      if (Array.isArray(u.projects) && u.projects.includes(proj.id)) {
+        u.projects = u.projects.filter((x) => x !== proj.id); await s.setJSON("users/" + u.username, u);
+      }
+    }
+    await s.delete("projects/" + proj.id);
+    return json({ ok: true });
+  }
+  return err("Μη επιτρεπτή μέθοδος", 405);
+}
+async function cleanProjectIds(s, list) {
+  if (!Array.isArray(list)) throw new HttpError("Μη έγκυρη λίστα έργων");
+  const ids = [...new Set(list.map(String))];
+  for (const id of ids) if (!(await getProject(s, id))) throw new HttpError("Άγνωστο έργο στη λίστα πρόσβασης");
+  return ids;
+}
+
 // ---------- χρήστες (admin) ----------
 async function users(s, me, req, parts, body) {
   const m = req.method, target = norm(parts[1]);
@@ -246,6 +350,7 @@ async function users(s, me, req, parts, body) {
         username: u, name: str(body.name, 100) || u,
         role: body.role === "admin" ? "admin" : "user",
         active: true, created: now(), created_by: me.username, ...hashPw(pw),
+        projects: body.projects ? await cleanProjectIds(s, body.projects) : [],
       };
       await s.setJSON("users/" + u, rec);
       return json(publicUser(rec), 201);
@@ -260,6 +365,7 @@ async function users(s, me, req, parts, body) {
     if ("name" in body) rec.name = str(body.name, 100) || rec.name;
     if ("role" in body) rec.role = body.role === "admin" ? "admin" : "user";
     if ("active" in body) rec.active = !!body.active;
+    if ("projects" in body) rec.projects = await cleanProjectIds(s, body.projects);
     if (body.password) {
       if (String(body.password).length < 6) return err("Ο κωδικός θέλει τουλάχιστον 6 χαρακτήρες");
       Object.assign(rec, hashPw(String(body.password)));
@@ -276,10 +382,22 @@ async function users(s, me, req, parts, body) {
 }
 
 // ---------- οικόπεδα ----------
-async function listPlots(s, me) {
-  const [plots, reviews] = await Promise.all([getAll(s, "plots/"), getAll(s, "reviews/")]);
+// Μια παρατήρηση ανήκει στο έργο όπου γράφτηκε. Αν το οικόπεδο μεταφερθεί, οι παλιές παρατηρήσεις
+// δεν φαίνονται στους χρήστες του νέου έργου και οι αποφάσεις τους δεν μετρούν εκεί.
+const sameProject = (r, plot) => !r.project || r.project === plot.project;   // !r.project: παρατηρήσεις πριν τα έργα
+function reviewsFor(all, plot, me) {
+  if (me.role === "admin") return all.map((r) => (sameProject(r, plot) ? r : { ...r, foreign: true }));
+  return all.filter((r) => sameProject(r, plot));
+}
+async function listPlots(s, me, projectId) {
+  if (!projectId) return err("Λείπει το έργο");
+  const proj = await getProject(s, projectId);
+  if (!proj || !canSee(me, proj.id)) return err("Το έργο δεν βρέθηκε", 404);
+  const [all, reviews] = await Promise.all([getAll(s, "plots/"), getAll(s, "reviews/")]);
+  const plots = all.filter((p) => p.project === proj.id);
+  const ids = new Set(plots.map((p) => p.id));
   const out = plots.map((p) => {
-    const rs = reviews.filter((r) => r.plot_id === p.id);
+    const rs = reviews.filter((r) => ids.has(r.plot_id) && r.plot_id === p.id && sameProject(r, p));
     const mine = rs.find((r) => r.username === me.username);
     const { events, links, ...rest } = p;
     return {
@@ -300,12 +418,13 @@ async function listPlots(s, me) {
 async function plots(s, me, req, parts, body) {
   const m = req.method, admin = me.role === "admin", id = parts[1];
   if (!id) {
-    if (m === "GET") return listPlots(s, me);
+    if (m === "GET") return listPlots(s, me, new URL(req.url).searchParams.get("project"));
     if (m === "POST") {
       if (!admin) return err("Μόνο για διαχειριστή", 403);
+      if (!(await getProject(s, body.project))) return err("Επιλέξτε έγκυρο έργο για το οικόπεδο");
       const p = {
         id: crypto.randomUUID(), title: "Νέο οικόπεδο", contact_type: "owner", phase: "A",
-        ...cleanPlot(body), events: [], links: [], rev: 1,
+        ...cleanPlot(body), project: body.project, events: [], links: [], rev: 1,
         created: now(), updated: now(), created_by: me.username,
       };
       await s.setJSON("plots/" + p.id, p);
@@ -316,12 +435,13 @@ async function plots(s, me, req, parts, body) {
   if (!validId(id)) return err("Μη έγκυρο id", 400);
   const key = "plots/" + id;
   const plot = await s.get(key, { type: "json" });
-  if (!plot) return err("Το οικόπεδο δεν βρέθηκε", 404);
+  // οικόπεδο άλλου έργου: απαντάμε «δεν βρέθηκε», ώστε να μη φαίνεται καν ότι υπάρχει
+  if (!plot || !canSee(me, plot.project)) return err("Το οικόπεδο δεν βρέθηκε", 404);
   const sub = parts[2];
 
   if (!sub) {
     if (m === "GET") {
-      const reviews = (await getAll(s, `reviews/${id}/`)).sort((a, b) => String(b.updated).localeCompare(String(a.updated)));
+      const reviews = reviewsFor(await getAll(s, `reviews/${id}/`), plot, me).sort((a, b) => String(b.updated).localeCompare(String(a.updated)));
       return json({ plot: forViewer(plot, me), reviews });
     }
     if (!admin) return err("Μόνο για διαχειριστή", 403);
@@ -330,6 +450,10 @@ async function plots(s, me, req, parts, body) {
       if (body.base_rev !== undefined && body.base_rev !== (plot.rev || 0) && !body.force)
         return json({ error: "Το οικόπεδο άλλαξε στο μεταξύ (από άλλη καρτέλα, συσκευή ή χρήστη).", rev: plot.rev || 0, updated: plot.updated, updated_by: plot.updated_by }, 409);
       const merged = { ...plot, ...cleanPlot(body) };
+      if ("project" in body && body.project !== plot.project) {        // μεταφορά σε άλλο έργο
+        if (!(await getProject(s, body.project))) return err("Άγνωστο έργο");
+        merged.project = body.project;
+      }
       if ((merged.lat == null) !== (merged.lng == null)) return err("Συμπληρώστε και τις δύο συντεταγμένες ή καμία");
       Object.assign(plot, merged, { updated: now(), updated_by: me.username, rev: (plot.rev || 0) + 1 });
       await s.setJSON(key, plot);
@@ -349,7 +473,7 @@ async function plots(s, me, req, parts, body) {
     // Οι αποφάσεις ΑΠΟΡΡΙΨΗ/ΕΓΚΡΙΣΗ είναι του πελάτη· ο διαχειριστής γράφει μόνο παρατηρήσεις
     const decide = !admin;
     const rec = {
-      plot_id: id, username: me.username, name: me.name, role: me.role,
+      plot_id: id, project: plot.project, username: me.username, name: me.name, role: me.role,
       remarks: str(body.remarks, 10000), rejected: decide && !!body.rejected,
       approved: decide && !body.rejected && !!body.approved, updated: now(),
     };
@@ -413,12 +537,14 @@ export default async (req) => {
     const m = req.method;
     const body = ["POST", "PUT", "PATCH"].includes(m) ? await req.json().catch(() => ({})) : {};
 
+    await ensureMigrated(s);   // πριν την ταυτοποίηση, ώστε οι χρήστες να έχουν ήδη έργα
     if (parts[0] === "login" && m === "POST") return await login(s, body);
 
     const me = await authenticate(req, s);
     if (!me) return err("Απαιτείται σύνδεση", 401);
 
     if (parts[0] === "me") return json(me);
+    if (parts[0] === "projects") return await projects(s, me, req, parts, body);
 
     if (parts[0] === "password" && m === "POST") {
       if (me.env) return err("Ο κωδικός του κύριου διαχειριστή αλλάζει από τις ρυθμίσεις (ADMIN_PASS) του Netlify");
@@ -435,6 +561,14 @@ export default async (req) => {
       return await users(s, me, req, parts, body);
     }
     if (parts[0] === "plots") return await plots(s, me, req, parts, body);
+
+    // Πλήρες αντίγραφο ασφαλείας σε JSON (χωρίς κωδικούς)
+    if (parts[0] === "backup" && m === "GET") {
+      if (me.role !== "admin") return err("Μόνο για διαχειριστή", 403);
+      const [projects, plots, reviews, users] = await Promise.all(["projects/", "plots/", "reviews/", "users/"].map((p) => getAll(s, p)));
+      return json({ app: "PlotManager", version: 2, exported_at: now(), exported_by: me.username,
+        projects, plots, reviews, users: users.map(publicUser) });
+    }
 
     return err("Άγνωστο endpoint", 404);
   } catch (e) {
