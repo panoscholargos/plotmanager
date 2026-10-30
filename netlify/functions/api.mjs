@@ -33,6 +33,8 @@ const NUM_FIELDS = new Set(["area", "price", "lat", "lng", "crit_distance", "cri
   "dist_center", "dist_sea", "road_width_plan", "road_width_site", "new_sale_m2", "build_cost_m2", "other_costs"]);
 const BOOL_FIELDS = new Set(["crit_checked", "crit_rejected"]);
 const DATE_FIELDS = new Set(["pe_date"]);
+const MARKER_COLORS = ["#f0883e", "#f85149", "#a371f7", "#3fb950", "#58a6ff", "#e3b341"];
+const MAX_MARKERS = 50;
 const ENUMS = {
   phase: PHASES,
   contact_type: ["owner", "broker"],
@@ -147,7 +149,7 @@ async function login(s, body) {
   }
   const rec = await s.get("users/" + u, { type: "json" });
   if (!rec) {
-    // ανύπαρκτος χρήστης: ίδιος χρόνος απόκρισης, χωρίς εγγραφή κλειδώματος (όχι «σκουπίδια» στο store)
+    // ανύπαρκτος χρήστης: περίπου ίδιος χρόνος απόκρισης (ένα scrypt), χωρίς εγγραφή κλειδώματος (όχι «σκουπίδια» στο store)
     crypto.scryptSync(pw, "0".repeat(32), 64);
     return err("Λάθος στοιχεία σύνδεσης", 401);
   }
@@ -170,6 +172,7 @@ function cleanPlot(body) {
       const n = v === null || v === "" ? null : Number(typeof v === "string" ? v.replace(",", ".") : v);
       if (n !== null && !Number.isFinite(n)) throw new HttpError(`Μη έγκυρος αριθμός στο πεδίο ${k}`);
       if (n !== null && n < 0 && k !== "lat" && k !== "lng") throw new HttpError(`Αρνητική τιμή στο πεδίο ${k}`);
+      if (k === "coverage" && n !== null && n > 100) throw new HttpError("Η κάλυψη είναι ποσοστό: έως 100%");
       o[k] = n;
     } else if (BOOL_FIELDS.has(k)) {
       o[k] = !!v;
@@ -194,7 +197,7 @@ function cleanPlot(body) {
   // Εργασίες σύμβασης: { A1: {status, date, hours, notes}, ... }
   if (body.tasks && typeof body.tasks === "object") {
     o.tasks = {};
-    for (const [k, t] of Object.entries(body.tasks)) {
+    for (const [k, t] of Object.entries(body.tasks).slice(0, 60)) {         // όριο: οι εργασίες της σύμβασης είναι λίγες
       if (!/^[A-Z][0-9]{1,2}$/.test(k) || !t || typeof t !== "object") continue;
       o.tasks[k] = {
         status: TASK_STATUS.includes(t.status) ? t.status : "",
@@ -210,11 +213,26 @@ function cleanPlot(body) {
       o.checks[k] = { state: CHECK_STATE.includes(c.state) ? c.state : "", note: str(c.note, 3000) };
     }
   }
+  // Σημεία με ετικέτα στον χάρτη του οικοπέδου
+  if ("markers" in body) {
+    if (!Array.isArray(body.markers)) throw new HttpError("Μη έγκυρη λίστα σημείων");
+    if (body.markers.length > MAX_MARKERS) throw new HttpError(`Έως ${MAX_MARKERS} σημεία ανά οικόπεδο`);
+    o.markers = body.markers.map((mk) => {
+      const lat = Number(mk && mk.lat), lng = Number(mk && mk.lng);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180)
+        throw new HttpError("Μη έγκυρες συντεταγμένες σημείου");
+      return {
+        id: /^[a-zA-Z0-9-]{4,40}$/.test(String(mk.id || "")) ? mk.id : crypto.randomUUID(),
+        lat: +lat.toFixed(7), lng: +lng.toFixed(7), label: str(mk.label, 120),
+        color: MARKER_COLORS.includes(mk.color) ? mk.color : MARKER_COLORS[0],
+      };
+    });
+  }
   // Βαθμολογία 0–10 ανά κριτήριο
   if (body.scores && typeof body.scores === "object") {
     o.scores = {};
     for (const [k, v] of Object.entries(body.scores)) {
-      if (/^[a-z]{2,10}$/.test(k)) o.scores[k] = numOrNull(v, 0, 10);
+      if (k in DEF_WEIGHTS) o.scores[k] = numOrNull(v, 0, 10);              // μόνο τα γνωστά κριτήρια Ε.1
     }
   }
   return o;
@@ -468,7 +486,7 @@ async function plots(s, me, req, parts, body) {
     return err("Μη επιτρεπτή μέθοδος", 405);
   }
 
-  // Παρατηρήσεις + ΑΠΟΡΡΙΨΗ: κάθε χρήστης τη δική του εγγραφή
+  // Παρατηρήσεις και αποφάσεις ΕΓΚΡΙΣΗ / ΑΠΟΡΡΙΨΗ: κάθε χρήστης έχει τη δική του εγγραφή
   if (sub === "review" && m === "PUT") {
     // Οι αποφάσεις ΑΠΟΡΡΙΨΗ/ΕΓΚΡΙΣΗ είναι του πελάτη· ο διαχειριστής γράφει μόνο παρατηρήσεις
     const decide = !admin;
@@ -535,7 +553,9 @@ export default async (req) => {
     try { parts = new URL(req.url).pathname.replace(/^\/api\/?/, "").split("/").filter(Boolean).map(decodeURIComponent); }
     catch { return err("Μη έγκυρη διεύθυνση", 400); }
     const m = req.method;
-    const body = ["POST", "PUT", "PATCH"].includes(m) ? await req.json().catch(() => ({})) : {};
+    // το σώμα πρέπει να είναι αντικείμενο JSON (όχι null, πίνακας ή αριθμός)
+    let body = ["POST", "PUT", "PATCH"].includes(m) ? await req.json().catch(() => ({})) : {};
+    if (!body || typeof body !== "object" || Array.isArray(body)) body = {};
 
     await ensureMigrated(s);   // πριν την ταυτοποίηση, ώστε οι χρήστες να έχουν ήδη έργα
     if (parts[0] === "login" && m === "POST") return await login(s, body);
@@ -573,7 +593,10 @@ export default async (req) => {
     return err("Άγνωστο endpoint", 404);
   } catch (e) {
     if (e instanceof HttpError) return err(e.message, e.status);
-    return err(e.message || "Σφάλμα διακομιστή", 500);
+    // απρόβλεπτο σφάλμα: λεπτομέρειες μόνο στο log του Netlify (Functions → api), όχι στον browser
+    console.error(e);
+    if (/AUTH_SECRET/.test(e.message || "")) return err(e.message, 500);   // ρύθμιση που λείπει: χρήσιμο μήνυμα
+    return err("Σφάλμα διακομιστή. Δοκιμάστε ξανά.", 500);
   }
 };
 

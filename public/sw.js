@@ -2,8 +2,10 @@
 // - Τα δεδομένα (/api) δεν αποθηκεύονται ποτέ: πάντα από τον διακομιστή.
 // - Η σελίδα φορτώνεται πρώτα από το δίκτυο, ώστε κάθε νέα έκδοση να φαίνεται αμέσως·
 //   από την cache μόνο όταν δεν υπάρχει σύνδεση.
-// - Οι βιβλιοθήκες του cdnjs (σταθερές εκδόσεις) κρατιούνται στην cache.
-const CACHE = 'plotmanager-v4';
+// - Η βοήθεια (/help.md) φορτώνεται επίσης πρώτα από το δίκτυο, για να είναι πάντα η τρέχουσα.
+// - Τα υπόλοιπα στατικά και οι βιβλιοθήκες του cdnjs (σταθερές εκδόσεις) δίνονται από την cache
+//   και ενημερώνονται στο παρασκήνιο.
+const CACHE = 'plotmanager-v6';
 const SHELL = ['/', '/manifest.webmanifest', '/favicon.svg', '/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', (e) => {
@@ -25,10 +27,15 @@ self.addEventListener('fetch', (e) => {
       .catch(() => caches.match('/')));
     return;
   }
+  if (url.origin === location.origin && url.pathname === '/help.md') {                // βοήθεια: δίκτυο πρώτα
+    e.respondWith(fetch(req).then((r) => { if (r.ok) { const c = r.clone(); caches.open(CACHE).then((x) => x.put(req, c)); } return r; })
+      .catch(() => caches.match(req).then((hit) => hit || Response.error())));
+    return;
+  }
   const cdn = url.hostname === 'cdnjs.cloudflare.com';
   if (url.origin === location.origin || cdn) {                                          // στατικά: cache, ενημέρωση στο παρασκήνιο
     e.respondWith(caches.match(req).then((hit) => {
-      const net = fetch(req).then((r) => { if (r.ok) { const c = r.clone(); caches.open(CACHE).then((x) => x.put(req, c)); } return r; }).catch(() => hit);
+      const net = fetch(req).then((r) => { if (r.ok) { const c = r.clone(); caches.open(CACHE).then((x) => x.put(req, c)); } return r; }).catch(() => hit || Response.error());   // χωρίς δίκτυο και χωρίς cache: κανονικό σφάλμα δικτύου
       return hit || net;
     }));
   }

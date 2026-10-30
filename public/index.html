@@ -78,6 +78,16 @@ body{display:flex;flex-direction:column;height:100vh;height:100dvh}
 #map.picking{cursor:crosshair}
 .leaflet-container{background:#0b0f14}
 .leaflet-tooltip{background:var(--panel);color:var(--text);border:1px solid var(--border)}
+/* σημεία με ετικέτα */
+.poi-lbl{background:rgba(255,255,255,.94)!important;color:#1f2328!important;border:1px solid #8c959f!important;border-radius:3px;
+  padding:0 6px!important;font-size:11.5px;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.35)!important;white-space:nowrap}
+.poi-lbl:before{display:none}
+.poi-ico svg{display:block;filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.55))}
+.poi-list{display:grid;gap:6px;margin-top:8px}
+.poi-row{display:grid;grid-template-columns:12px 1fr 92px auto auto;gap:6px;align-items:center}
+.poi-row.u{grid-template-columns:12px 1fr auto auto}
+.poi-dot{width:12px;height:12px;border-radius:50%;border:1px solid #0d1117}
+.poi-row .note{white-space:nowrap}
 .leaflet-control-layers{background:var(--panel)!important;color:var(--text)!important;border:1px solid var(--border)!important}
 
 .ph{padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
@@ -134,6 +144,7 @@ table.cmp{border-collapse:collapse;font-size:12.5px;white-space:nowrap}
 table.cmp th{position:sticky;top:0;background:var(--panel);color:var(--muted);font-weight:400;text-align:left;padding:6px 8px;border-bottom:1px solid var(--border);z-index:1}
 table.cmp td{padding:6px 8px;border-bottom:1px solid var(--border)}
 table.cmp td.n{text-align:right;font-variant-numeric:tabular-nums}
+table.cmp td.warn{color:#d29922}
 table.cmp tr:hover td{background:var(--hover);cursor:pointer}
 table.cmp tr.rj td{opacity:.55}
 .empty{color:var(--muted);text-align:center;padding:30px 10px}
@@ -195,9 +206,25 @@ legend{color:var(--muted);font-size:12px;padding:0 6px;text-transform:uppercase;
 .card h1{font-size:18px;margin:0 0 4px;display:flex;align-items:center;gap:10px}
 .card .sub{color:var(--muted);margin-bottom:16px;font-size:13px}
 .card .fld{margin-bottom:10px}
-#modal{position:fixed;inset:0;background:rgba(1,4,9,.7);display:flex;align-items:center;justify-content:center;z-index:1900}
+#modal{position:fixed;inset:0;background:rgba(1,4,9,.7);display:flex;align-items:center;justify-content:center;z-index:2100}  /* πάνω από τη φόρμα σύνδεσης (Βοήθεια) */
 #modalBox{background:var(--panel);border:1px solid var(--border);border-radius:10px;width:min(720px,94vw);max-height:88vh;display:flex;flex-direction:column}
 #modalBox .mb{padding:14px;overflow:auto}
+/* κουμπί και παράθυρο βοήθειας */
+.infoBtn{width:28px;height:28px;padding:0!important;border-radius:50%!important;background:#1f6feb!important;border-color:#388bfd!important;color:#fff!important;
+  font:italic 700 15px Georgia,'Times New Roman',serif!important;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
+.infoBtn:hover{background:#388bfd!important}
+#modalBox.help{width:min(900px,96vw)}
+.md{font-size:14px;line-height:1.6;color:var(--text)}
+.md h1{font-size:22px;margin:0 0 10px;border-bottom:1px solid var(--border);padding-bottom:8px}
+.md h2{font-size:17px;margin:22px 0 8px;border-bottom:1px solid var(--border);padding-bottom:5px;color:#58a6ff}
+.md h3{font-size:15px;margin:16px 0 6px}
+.md p{margin:8px 0}.md ul,.md ol{margin:6px 0;padding-left:22px}.md li{margin:3px 0}
+.md code{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:0 4px;font-size:12.5px}
+.md pre{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px;overflow:auto;font-size:12.5px;line-height:1.45}
+.md pre code{border:0;padding:0;background:none}
+.md table{border-collapse:collapse;margin:8px 0;font-size:13px}.md th,.md td{border:1px solid var(--border);padding:4px 8px;text-align:left}
+.md th{background:var(--bg)}.md a{color:#58a6ff}
+.md hr{border:0;border-top:1px solid var(--border);margin:20px 0 8px}
 table.users{width:100%;border-collapse:collapse;font-size:13px}
 table.users th,table.users td{text-align:left;padding:6px;border-bottom:1px solid var(--border)}
 table.users th{color:var(--muted);font-weight:400;font-size:12px}
@@ -209,6 +236,7 @@ table.users th{color:var(--muted);font-weight:400;font-size:12px}
 
 @media (max-width:820px){
   /* κινητό: δύο σειρές — 1) έργο + εικονίδια, 2) Λίστα / Χάρτης / Πίνακας σε όλο το πλάτος */
+  body.ruler-on #mapTools{display:none}
   #topbar{gap:6px;padding:6px 8px;height:auto;flex-wrap:wrap;row-gap:6px}
   #topbar .logo{display:none}
   .projbox{flex:1;min-width:0} #projSel{max-width:none;width:100%;padding:5px 6px;font-size:14px}
@@ -220,6 +248,7 @@ table.users th{color:var(--muted);font-weight:400;font-size:12px}
   .nav{gap:2px;min-width:0}
   .task-f{grid-template-columns:1fr 74px} .task-f select{grid-column:1/-1}
   .task-f.u{grid-template-columns:1fr}
+  .poi-row{grid-template-columns:12px 1fr 80px auto auto}
   #panelToggle{display:inline-block}
   .who .nm,.logo-text,.lbl{display:none}
   .navbtn{padding:4px 7px;font-size:13px}
@@ -244,6 +273,7 @@ table.users th{color:var(--muted);font-weight:400;font-size:12px}
       <button class="btn primary" id="lgBtn">Σύνδεση</button>
     </div>
     <div style="margin-top:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <button type="button" class="btn sm infoBtn" onclick="openHelp()" title="Βοήθεια" aria-label="Βοήθεια">i</button>
       <button type="button" class="btn sm hidden installBtn" onclick="installApp()">⤓ Εγκατάσταση εφαρμογής</button>
       <span id="iosHint" class="note hidden">Για εγκατάσταση στο iPhone/iPad: Κοινοποίηση <b>⬆</b> → «Προσθήκη στην οθόνη Αφετηρίας».</span>
     </div>
@@ -272,6 +302,7 @@ table.users th{color:var(--muted);font-weight:400;font-size:12px}
   <div class="sep"></div>
   <div class="who"><span class="nm" id="whoName"></span><span class="role" id="whoRole"></span></div>
   <button class="btn sm hidden installBtn" onclick="installApp()" title="Εγκατάσταση εφαρμογής">⤓<span class="lbl"> Εγκατάσταση</span></button>
+  <button class="btn sm infoBtn" onclick="openHelp()" title="Βοήθεια" aria-label="Βοήθεια">i</button>
   <button class="btn sm" onclick="openPassword()" title="Αλλαγή κωδικού">🔑</button>
   <button class="btn sm" title="Έξοδος" onclick="if(!DIRTY||confirm('Υπάρχουν μη αποθηκευμένες αλλαγές. Έξοδος χωρίς αποθήκευση;'))logout()">⏻<span class="lbl"> Έξοδος</span></button>
 </div>
@@ -304,10 +335,10 @@ table.users th{color:var(--muted);font-weight:400;font-size:12px}
 // ===================== ΡΥΘΜΙΣΕΙΣ =====================
 const CFG = {
   center: [37.97, 23.73], zoom: 10,
-  // WMS Κτηματολογίου (ορθοφωτογραφίες) — ίδιο endpoint με το LOS Planner
+  // WMS Κτηματολογίου (υπόβαθρο BASEMAP), ίδιο endpoint και layer με το mySimpleGIS
   ktimaWms: 'https://gis.ktimanet.gr/wms/wmsopen/wmsserver.aspx?',
   ktimaLayer: 'BASEMAP',
-  // Κριτήρια σύμβασης (Γ.4)
+  // Προεπιλεγμένα κριτήρια σύμβασης (Γ.4). Κάθε έργο μπορεί να έχει δικά του (⚙ Έργα → Ρυθμίσεις, applyProjectSettings)
   contract: { center_km: 2, sea_km: 4, road_m: 8, house_min_m2: 170, house_max_m2: 220,
     // λόγος καθαρού προς μικτό εμβαδόν κατοικίας (τοίχοι, κλιμακοστάσιο, κοινόχρηστα)
     net_ratio: 0.85 },
@@ -326,7 +357,7 @@ let DIRTY = false;
 let PICK = false;
 let VIEW = 'plots';
 let PROJECTS = [], PROJ = null;
-let map, markerLayer, tempMarker;
+let map, markerLayer, tempMarker, poiLayer, RULER = null;
 
 const isAdmin = () => ME && ME.role === 'admin';
 const $ = (id) => document.getElementById(id);
@@ -361,11 +392,14 @@ function toast(msg, kind = '') {
 }
 
 async function api(path, opts = {}) {
-  const r = await fetch('/api/' + path, {
-    method: opts.method || 'GET',
-    headers: { 'content-type': 'application/json', ...(TOKEN ? { authorization: 'Bearer ' + TOKEN } : {}) },
-    body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
-  });
+  let r;
+  try {
+    r = await fetch('/api/' + path, {
+      method: opts.method || 'GET',
+      headers: { 'content-type': 'application/json', ...(TOKEN ? { authorization: 'Bearer ' + TOKEN } : {}) },
+      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+    });
+  } catch { throw new Error('Δεν υπάρχει σύνδεση με τον διακομιστή. Ελέγξτε το διαδίκτυο και δοκιμάστε ξανά.'); }
   let d = {}; try { d = await r.json(); } catch {}
   if (r.status === 401 && path !== 'login' && path !== 'password') { logout(true); throw new Error(d.error || 'Απαιτείται σύνδεση'); }
   if (!r.ok) { const e = new Error(d.error || ('Σφάλμα HTTP ' + r.status)); e.status = r.status; e.data = d; throw e; }
@@ -386,7 +420,11 @@ function logout(expired) {
   TOKEN = ''; ME = null; CUR = null; CUR_REVIEWS = []; TAB = 'info'; DIRTY = false; if (VIEW !== 'plots') setView('plots', true); SEARCH = ''; FILTER = 'all'; PROJECTS = []; PROJ = null; PLOTS = []; closeModal(); localStorage.removeItem('pm_token');
   // καθαρίζουμε ό,τι έδειχνε ο προηγούμενος χρήστης (να μη μένει στη σελίδα πίσω από τη φόρμα σύνδεσης)
   $('panel').innerHTML = ''; $('compare').innerHTML = ''; $('projSel').innerHTML = '';
+  PICK = false; $('map').classList.remove('picking'); OPEN_SEQ++; SAVING = false; USERS_CACHE = [];   // εκκρεμή ανοίγματα οικοπέδου αγνοούνται
+  if (map) map.closePopup();
   if (markerLayer) markerLayer.clearLayers(); if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
+  if (RULER) RULER.reset();
+  if (poiLayer) poiLayer.clearLayers();
   $('login').classList.remove('hidden');
   if (expired === true) $('lgErr').textContent = 'Η σύνδεση έληξε, συνδεθείτε ξανά.';
 }
@@ -426,7 +464,8 @@ function renderProjSel() {
     ? PROJECTS.map(p => `<option value="${esc(p.id)}" ${p.id === PROJ ? 'selected' : ''}>${esc(p.name)}${p.archived ? ' (αρχείο)' : ''}</option>`).join('')
     : '<option value="">— κανένα έργο —</option>';
 }
-// Τα κριτήρια σύμβασης και τα βάρη βαθμολογίας είναι ανά έργο
+// Τα κριτήρια σύμβασης και τα βάρη βαθμολογίας είναι ανά έργο: τα CFG.contract και SCORE_CRITERIA
+// κρατούν τις τιμές του τρέχοντος έργου, και τα DEF_* τις προεπιλογές για όσα δεν έχει ορίσει το έργο.
 const DEF_CRITERIA = { ...CFG.contract };
 const DEF_WEIGHTS = {};
 function applyProjectSettings() {
@@ -534,6 +573,199 @@ async function deleteProject(id) {
   } catch (e) { toast(e.message, 'err'); }
 }
 
+// ===================== ΧΑΡΑΚΑΣ (μέτρηση απόστασης) =====================
+// Αυτόνομη συνάρτηση: χρησιμοποιείται στον κύριο χάρτη και ενσωματώνεται αυτούσια στον χάρτη της Αναφοράς.
+// Γεωδαιτική απόσταση Vincenty (WGS84). Κλικ: σημείο · διπλό κλικ / «Τέλος»: ολοκλήρωση · Esc: καθαρισμός.
+function addRuler(map, doc, opts) {
+  opts = opts || {};
+  if (!doc.getElementById('ruler-css')) {
+    const st = doc.createElement('style'); st.id = 'ruler-css';
+    st.textContent = `
+.ruler-tools a{font-size:16px;line-height:30px;text-align:center;cursor:pointer;user-select:none}
+.ruler-tools a.on{background:#ffdf5d!important;color:#0d1117!important}
+.ruler-measuring,.ruler-measuring .leaflet-interactive{cursor:crosshair!important}
+/* !important: ο Leaflet έχει πιο ειδικό κανόνα (.leaflet-pane > svg path.leaflet-interactive) που κάνει τα σημεία πατήσιμα */
+.ruler-measuring .leaflet-interactive,.ruler-measuring .leaflet-marker-icon{pointer-events:none!important}
+.ruler-lbl{background:rgba(13,17,23,.9);color:#ffdf5d;border:1px solid #ffdf5d;border-radius:3px;padding:0 5px;
+  font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;box-shadow:none;white-space:nowrap}
+.ruler-lbl:before{display:none}
+.ruler-box{position:absolute;left:10px;bottom:34px;z-index:800;background:#161b22;color:#e6edf3;border:1px solid #ffdf5d;
+  border-radius:6px;padding:8px 10px;font:12px/1.45 -apple-system,"Segoe UI",Roboto,"Noto Sans",sans-serif;display:none;max-width:calc(100% - 20px)}
+.ruler-box.show{display:block}
+.ruler-box b{color:#ffdf5d;font-size:15px;font-variant-numeric:tabular-nums}
+.ruler-box .r-hint{color:#8b949e;margin-top:3px}
+.ruler-box button{margin:6px 4px 0 0;background:transparent;border:1px solid #30363d;color:#e6edf3;border-radius:6px;padding:3px 9px;font:inherit;cursor:pointer}
+.ruler-box button:hover{border-color:#ffdf5d}
+.ruler-box button:disabled{opacity:.45;cursor:default}
+@media print{.ruler-tools,.ruler-box button,.ruler-box .r-help{display:none!important}}`;
+    doc.head.appendChild(st);
+  }
+  const geoDist = (a, b) => {
+    const A = 6378137, F = 1 / 298.257223563, B = A * (1 - F), r = Math.PI / 180;
+    const L_ = (b.lng - a.lng) * r, U1 = Math.atan((1 - F) * Math.tan(a.lat * r)), U2 = Math.atan((1 - F) * Math.tan(b.lat * r));
+    const sU1 = Math.sin(U1), cU1 = Math.cos(U1), sU2 = Math.sin(U2), cU2 = Math.cos(U2);
+    let lam = L_, it = 0, sS, cS, sig, sA, c2A, c2Sm, lamP;
+    do {
+      const sL = Math.sin(lam), cL = Math.cos(lam);
+      sS = Math.sqrt((cU2 * sL) ** 2 + (cU1 * sU2 - sU1 * cU2 * cL) ** 2);
+      if (sS === 0) return 0;
+      cS = sU1 * sU2 + cU1 * cU2 * cL; sig = Math.atan2(sS, cS);
+      sA = cU1 * cU2 * sL / sS; c2A = 1 - sA * sA;
+      c2Sm = c2A ? cS - 2 * sU1 * sU2 / c2A : 0;
+      const C = F / 16 * c2A * (4 + F * (4 - 3 * c2A));
+      lamP = lam; lam = L_ + (1 - C) * F * sA * (sig + C * sS * (c2Sm + C * cS * (-1 + 2 * c2Sm * c2Sm)));
+    } while (Math.abs(lam - lamP) > 1e-12 && ++it < 200);
+    if (it >= 200) return map.distance(a, b);
+    const u2 = c2A * (A * A - B * B) / (B * B);
+    const kA = 1 + u2 / 16384 * (4096 + u2 * (-768 + u2 * (320 - 175 * u2))), kB = u2 / 1024 * (256 + u2 * (-128 + u2 * (74 - 47 * u2)));
+    const dS = kB * sS * (c2Sm + kB / 4 * (cS * (-1 + 2 * c2Sm * c2Sm) - kB / 6 * c2Sm * (-3 + 4 * sS * sS) * (-3 + 4 * c2Sm * c2Sm)));
+    return B * kA * (sig - dS);
+  };
+  const fmtM = (d) => {
+    const m = Math.round(d).toLocaleString('el-GR') + ' m';
+    return d >= 1000 ? `${m} (${(d / 1000).toLocaleString('el-GR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} km)` : m;
+  };
+  const layer = L.layerGroup().addTo(map);
+  let on = false, pts = [], ghost = null, ghostLbl = null;
+  const Ctl = L.Control.extend({
+    options: { position: 'topleft' },
+    onAdd() {
+      const c = L.DomUtil.create('div', 'leaflet-bar ruler-tools');
+      c.innerHTML = '<a href="#" role="button" title="Μέτρηση απόστασης" aria-label="Μέτρηση απόστασης">📏</a>';
+      L.DomEvent.disableClickPropagation(c);
+      return c;
+    },
+  });
+  const btn = new Ctl().addTo(map).getContainer().querySelector('a');
+  const box = L.DomUtil.create('div', 'ruler-box', map.getContainer());
+  box.setAttribute('role', 'status'); box.setAttribute('aria-live', 'polite');
+  box.innerHTML = '<div>Απόσταση: <b class="r-total">0 m</b></div><div class="r-hint r-segs"></div>' +
+    '<div class="r-hint r-help">Κλικ στον χάρτη για σημεία. Διπλό κλικ ή «Τέλος» για ολοκλήρωση.</div>' +
+    '<button type="button" class="r-undo">Αναίρεση</button><button type="button" class="r-clear">Καθαρισμός</button><button type="button" class="r-done">Τέλος</button>';
+  L.DomEvent.disableClickPropagation(box); L.DomEvent.disableScrollPropagation(box);
+  const q = (sel) => box.querySelector(sel);
+  const total = () => { let d = 0; for (let i = 1; i < pts.length; i++) d += geoDist(pts[i - 1], pts[i]); return d; };
+  const busy = () => doc.body.classList.toggle('ruler-on', on || pts.length > 0);
+  function draw() {
+    layer.clearLayers(); ghost = null; ghostLbl = null;
+    if (pts.length > 1) {
+      L.polyline(pts, { color: '#0d1117', weight: 5, opacity: .45, interactive: false }).addTo(layer);
+      L.polyline(pts, { color: '#ffdf5d', weight: 3, dashArray: '6 5', interactive: false }).addTo(layer);
+    }
+    let cum = 0;
+    pts.forEach((p, i) => {
+      if (i) cum += geoDist(pts[i - 1], p);
+      const v = L.circleMarker(p, { radius: 5, weight: 2, color: '#0d1117', fillColor: '#ffdf5d', fillOpacity: 1, interactive: false }).addTo(layer);
+      if (i) v.bindTooltip(fmtM(cum), { permanent: true, direction: 'right', offset: [7, 0], className: 'ruler-lbl' });
+    });
+    const segs = []; for (let i = 1; i < pts.length; i++) segs.push(Math.round(geoDist(pts[i - 1], pts[i])).toLocaleString('el-GR'));
+    q('.r-total').textContent = fmtM(total());
+    q('.r-segs').textContent = segs.length > 1 ? 'Τμήματα: ' + segs.join(' + ') + ' m' : '';
+    q('.r-help').style.display = on ? '' : 'none';
+    q('.r-done').style.display = on ? '' : 'none';
+    q('.r-undo').disabled = !pts.length;
+    busy();
+  }
+  function setOn(v) {
+    on = v;
+    btn.classList.toggle('on', v);
+    map.getContainer().classList.toggle('ruler-measuring', v);
+    if (v) { map.closePopup(); map.doubleClickZoom.disable(); box.classList.add('show'); if (opts.onStart) opts.onStart(); }
+    else { map.doubleClickZoom.enable(); if (!pts.length) box.classList.remove('show'); }
+    draw();
+  }
+  function clear() { pts = []; draw(); if (!on) box.classList.remove('show'); }
+  btn.addEventListener('click', (e) => { e.preventDefault(); if (on) { setOn(false); clear(); } else { clear(); setOn(true); } });
+  map.on('click', (e) => {
+    if (!on) return;
+    const lp = pts[pts.length - 1];
+    if (lp && map.latLngToContainerPoint(lp).distanceTo(e.containerPoint) < 3) return;   // 2ο κλικ διπλού κλικ
+    pts.push(e.latlng); draw();
+  });
+  map.on('dblclick', () => {
+    if (!on) return;
+    while (pts.length > 1 && pts[pts.length - 1].distanceTo(pts[pts.length - 2]) < 0.5) pts.pop();
+    setOn(false);
+  });
+  map.on('popupopen', () => { if (on) map.closePopup(); });
+  map.on('mousemove', (e) => {
+    if (!on || !pts.length) return;
+    const last = pts[pts.length - 1], d = total() + geoDist(last, e.latlng);
+    if (!ghost) {
+      ghost = L.polyline([last, e.latlng], { color: '#ffdf5d', weight: 2, opacity: .7, dashArray: '2 6', interactive: false }).addTo(layer);
+      ghostLbl = L.tooltip({ permanent: true, direction: 'right', offset: [10, 0], className: 'ruler-lbl' }).setLatLng(e.latlng).setContent(fmtM(d)).addTo(layer);
+    } else { ghost.setLatLngs([last, e.latlng]); ghostLbl.setLatLng(e.latlng).setContent(fmtM(d)); }
+  });
+  q('.r-undo').onclick = () => { pts.pop(); draw(); };
+  q('.r-clear').onclick = () => clear();
+  q('.r-done').onclick = () => setOn(false);
+  doc.addEventListener('keydown', (e) => { if (e.key === 'Escape' && (on || pts.length)) { setOn(false); clear(); } });
+  draw();
+  return { active: () => on, reset: () => { setOn(false); clear(); }, distance: geoDist };
+}
+
+// ===================== ΣΗΜΕΙΑ ΜΕ ΕΤΙΚΕΤΑ (ανά οικόπεδο) =====================
+const POI_COLORS = [['#f0883e', 'Πορτοκαλί'], ['#f85149', 'Κόκκινο'], ['#a371f7', 'Μωβ'], ['#3fb950', 'Πράσινο'], ['#58a6ff', 'Μπλε'], ['#e3b341', 'Κίτρινο']];
+const poiSvg = (c) => `<svg width="24" height="32" viewBox="0 0 24 32" aria-hidden="true"><path d="M12 1C6 1 1.5 5.5 1.5 11.3 1.5 19 12 31 12 31s10.5-12 10.5-19.7C22.5 5.5 18 1 12 1z" fill="${c}" stroke="#0d1117" stroke-width="1.5"/><circle cx="12" cy="11" r="4" fill="#fff"/></svg>`;
+const plotPois = (p) => (Array.isArray(p.markers) ? p.markers : []).filter(mk => Number.isFinite(mk.lat) && Number.isFinite(mk.lng));
+const poiIcon = (c) => L.divIcon({ className: 'poi-ico', html: poiSvg(c), iconSize: [24, 32], iconAnchor: [12, 31], tooltipAnchor: [0, -29] });
+const fmtDist = (d) => d >= 1000 ? (d / 1000).toLocaleString('el-GR', { maximumFractionDigits: 2 }) + ' km' : Math.round(d).toLocaleString('el-GR') + ' m';
+function poiDist(mk, p = CUR) {                     // απόσταση σημείου από το οικόπεδο (Vincenty, ίδια με τον χάρακα)
+  const lat = num(p && p.lat), lng = num(p && p.lng);
+  return lat === null || lng === null || !RULER ? '' : fmtDist(RULER.distance(L.latLng(lat, lng), L.latLng(mk.lat, mk.lng)));
+}
+// Τα σημεία φαίνονται όταν είναι ανοιχτός ο φάκελος ενός οικοπέδου
+function drawPoi() {
+  if (!poiLayer) return;
+  poiLayer.clearLayers();
+  if (!CUR || VIEW !== 'plots' || !Array.isArray(CUR.markers)) return;
+  CUR.markers.forEach((mk, i) => {
+    const mm = L.marker([mk.lat, mk.lng], { icon: poiIcon(mk.color), draggable: isAdmin(), keyboard: false, zIndexOffset: 500, title: mk.label || '' })
+      .bindTooltip(esc(mk.label || '—'), { permanent: true, direction: 'top', className: 'poi-lbl' })
+      .addTo(poiLayer);
+    mm.on('dragend', () => {
+      const ll = mm.getLatLng();
+      CUR.markers[i].lat = +ll.lat.toFixed(7); CUR.markers[i].lng = +ll.lng.toFixed(7);
+      markDirty(); if (TAB === 'info') renderTab();
+    });
+  });
+}
+function startPoiPick() {
+  if (RULER && RULER.active()) RULER.reset();
+  PICK = 'poi'; $('map').classList.add('picking');
+  if (window.innerWidth <= 820) $('panel').classList.add('collapsed');
+  toast('Πατήστε στον χάρτη για να τοποθετήσετε το νέο σημείο (Esc: ακύρωση)');
+}
+function addPoiAt(latlng) {
+  CUR.markers = CUR.markers || [];
+  if (CUR.markers.length >= 50) return toast('Έως 50 σημεία ανά οικόπεδο', 'err');
+  CUR.markers.push({ id: 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), lat: +latlng.lat.toFixed(7), lng: +latlng.lng.toFixed(7), label: 'Σημείο ' + (CUR.markers.length + 1), color: POI_COLORS[0][0] });
+  markDirty(); $('panel').classList.remove('collapsed');
+  if (TAB !== 'info') setTab('info'); else renderTab();
+  drawPoi();
+  const inp = document.querySelector(`[data-k="markers.${CUR.markers.length - 1}.label"]`);
+  if (inp) { inp.focus(); inp.select(); }
+  toast('Δώστε ετικέτα στο σημείο και πατήστε Αποθήκευση');
+}
+function delPoi(i) { CUR.markers.splice(i, 1); markDirty(); renderTab(); drawPoi(); }
+function focusPoi(i) {
+  const mk = CUR.markers[i]; if (!mk) return;
+  map.setView([mk.lat, mk.lng], Math.max(map.getZoom(), 18));
+  if (window.innerWidth <= 820) $('panel').classList.add('collapsed');
+}
+function poiListHtml() {
+  const list = CUR.markers || [], adm = isAdmin();
+  return `<div class="poi-list">${list.map((mk, i) => `
+    <div class="poi-row ${adm ? '' : 'u'}"><span class="poi-dot" style="background:${esc(mk.color)}"></span>
+      ${adm ? `<input type="text" data-k="markers.${i}.label" value="${esc(mk.label)}" placeholder="Ετικέτα" maxlength="120">
+        <select data-k="markers.${i}.color" title="Χρώμα">${POI_COLORS.map(([c, n]) => `<option value="${c}" ${mk.color === c ? 'selected' : ''}>${n}</option>`).join('')}</select>`
+      : `<span>${esc(mk.label || '—')}</span>`}
+      <span class="note poi-d" title="Απόσταση από το οικόπεδο">${poiDist(mk)}</span>
+      <span class="row" style="gap:4px"><button class="btn sm" onclick="focusPoi(${i})" title="Εστίαση">◎</button>${adm ? `<button class="btn danger sm" onclick="delPoi(${i})" title="Αφαίρεση">✕</button>` : ''}</span>
+    </div>`).join('') || '<span class="note">Κανένα σημείο</span>'}</div>
+    ${adm ? '<div class="row" style="margin-top:8px"><button class="btn primary sm" onclick="startPoiPick()">＋ Σημείο από τον χάρτη</button><span class="note">σύρετε ένα σημείο για να το μετακινήσετε</span></div>' : ''}`;
+}
+
 // ===================== ΧΑΡΤΗΣ =====================
 function initMap() {
   map = L.map('map', { zoomControl: true, maxZoom: 20 }).setView(CFG.center, CFG.zoom);
@@ -543,7 +775,10 @@ function initMap() {
   L.control.layers({ 'OpenStreetMap': osm, 'Κτηματολόγιο (ορθοφωτό)': ktima }, {}, { position: 'topright' }).addTo(map);
   L.control.scale({ imperial: false }).addTo(map);
   markerLayer = L.layerGroup().addTo(map);
+  poiLayer = L.layerGroup().addTo(map);
   map.on('click', onMapClick);
+  // ο χάρακας ακυρώνει την «επιλογή θέσης από τον χάρτη», ώστε ένα κλικ να μη κάνει δύο πράγματα
+  RULER = addRuler(map, document, { onStart: () => { if (PICK) { PICK = false; $('map').classList.remove('picking'); } } });
 }
 function plotColor(p) {
   if (p.crit_rejected || phaseOf(p) === 'rejected') return '#f85149';
@@ -564,7 +799,12 @@ function renderMarkers() {
     const m = L.circleMarker([lat, lng], { radius: sel ? 10 : 7, color: sel ? '#fff' : '#0d1117', weight: 2, fillColor: plotColor(p), fillOpacity: .95 });
     m.bindTooltip(esc((p.code ? p.code + ' · ' : '') + (p.title || '')), { direction: 'top', offset: [0, -6] });
     if (VIEW === 'map') m.bindPopup(plotPopup(p), { maxWidth: 280 });
-    else m.on('click', (e) => { L.DomEvent.stopPropagation(e); if (!PICK) openPlot(p.id); });
+    else m.on('click', (e) => {
+      if (RULER && RULER.active()) return;
+      L.DomEvent.stopPropagation(e);
+      if (PICK) onMapClick(e);                       // επιλογή θέσης: το κλικ μετρά ως κλικ στον χάρτη
+      else openPlot(p.id);
+    });
     m.addTo(markerLayer); pts.push([lat, lng]);
   }
   return pts;
@@ -575,12 +815,15 @@ function fitAll() {
   else if (pts.length > 1) map.fitBounds(pts, { padding: [40, 40], maxZoom: 16 });
 }
 function startPick() {
-  PICK = true; $('map').classList.add('picking');
+  if (RULER && RULER.active()) RULER.reset();
+  PICK = 'plot'; $('map').classList.add('picking');
   if (window.innerWidth <= 820) $('panel').classList.add('collapsed');
-  toast('Πατήστε στον χάρτη για να ορίσετε τη θέση του οικοπέδου');
+  toast('Πατήστε στον χάρτη για να ορίσετε τη θέση του οικοπέδου (Esc: ακύρωση)');
 }
 function onMapClick(e) {
+  if (RULER && RULER.active()) return;
   if (!PICK || !CUR) return;
+  if (PICK === 'poi') { PICK = false; $('map').classList.remove('picking'); return addPoiAt(e.latlng); }
   PICK = false; $('map').classList.remove('picking');
   CUR.lat = +e.latlng.lat.toFixed(7); CUR.lng = +e.latlng.lng.toFixed(7);
   markDirty();
@@ -590,6 +833,13 @@ function onMapClick(e) {
   if (TAB === 'info') renderTab();
   toast('Η θέση ορίστηκε — μην ξεχάσετε την Αποθήκευση');
 }
+// Esc: κλείνει μεγέθυνση φωτογραφίας ή παράθυρο· αλλιώς ακυρώνει την «επιλογή από τον χάρτη»
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (!$('lightbox').classList.contains('hidden')) return $('lightbox').classList.add('hidden');
+  if (!$('modal').classList.contains('hidden')) return closeModal();
+  if (PICK) { PICK = false; $('map').classList.remove('picking'); $('panel').classList.remove('collapsed'); toast('Ακυρώθηκε η επιλογή από τον χάρτη'); }
+});
 function togglePanel() { $('panel').classList.toggle('collapsed'); setTimeout(() => map.invalidateSize(), 50); }
 
 // ===================== ΣΕΛΙΔΑ ΧΑΡΤΗ =====================
@@ -604,7 +854,7 @@ function setView(v, force) {
   $('compare').classList.toggle('hidden', v !== 'compare');
   map.closePopup();
   if (force) return;
-  if (v !== 'plots') { CUR = null; if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; } }
+  if (v !== 'plots') { CUR = null; if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; } drawPoi(); }
   if (v === 'map') renderMapPage(true);
   else if (v === 'compare') renderCompare(true);
   else renderList();
@@ -635,8 +885,26 @@ function plotPopup(p) {
     ${num(p.area) !== null ? fmt(num(p.area)) + ' m²' : ''}${num(p.price) !== null ? ' · ' + fmt(num(p.price), 0) + ' €' : ''}
     <div class="badges" style="margin:4px 0 8px">${st}${p.rejections && p.rejections.length ? `<span class="bdg o">ΑΠΟΡΡΙΨΗ ×${p.rejections.length}</span>` : ''}${p.units ? `<span class="bdg b">${esc(unitsLabel(p.units))}</span>` : ''}</div>
     <div class="row" style="gap:6px;flex-wrap:wrap"><button class="btn primary sm" onclick="openFromMap('${p.id}')">📁 Άνοιγμα φακέλου</button>
+    <button class="btn sm" onclick="copyCoords('${p.id}')" title="Αντιγραφή συντεταγμένων για πρόγραμμα πλοήγησης">📋 Συντεταγμένες</button>
     <a class="btn sm" target="_blank" rel="noopener" href="${esc(earthUrl(p))}" title="Google Earth σε 3D">Earth 3D ↗</a>
     <button class="btn sm" onclick="openKtimatologio('${p.id}')" title="Ανοίγει το maps.ktimatologio.gr κεντραρισμένο στο οικόπεδο${p.kaek ? ' (και αντιγράφει το ΚΑΕΚ)' : ''}">Κτηματολόγιο ↗</button></div>`;
+}
+// Αντιγραφή «πλάτος, μήκος» (WGS84, δεκαδικές μοίρες με τελεία): η μορφή που δέχονται
+// Google Maps, Waze, Apple Maps και τα περισσότερα GPS στην αναζήτηση
+async function copyCoords(id) {
+  const p = (CUR && (!id || CUR.id === id)) ? CUR : PLOTS.find(x => x.id === id);
+  const lat = num(p && p.lat), lng = num(p && p.lng);
+  if (lat === null || lng === null) return toast('Δεν έχει οριστεί θέση', 'err');
+  const txt = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+  let ok = false;
+  try { await navigator.clipboard.writeText(txt); ok = true; }
+  catch {                                         // παλιότεροι browsers / χωρίς άδεια πρόχειρου
+    const ta = document.createElement('textarea'); ta.value = txt; ta.style.cssText = 'position:fixed;opacity:0';
+    document.body.appendChild(ta); ta.select();
+    try { ok = document.execCommand('copy'); } catch {}
+    ta.remove();
+  }
+  toast(ok ? `Αντιγράφηκαν: ${txt} — επικολλήστε τις στην αναζήτηση του προγράμματος πλοήγησης` : `Συντεταγμένες: ${txt}`, ok ? 'ok' : '');
 }
 async function openFromMap(id) { setView('plots'); await openPlot(id); }
 
@@ -653,6 +921,7 @@ function exportMySimpleGIS() {
     '',
     "Σχήμα,Τίτλος,Σχόλια,Χρώμα,Πληροφορία,Συντεταγμένες Χ,Υ (ΕΓΣΑ'87)",
   ];
+  let nPoi = 0;
   for (const p of list) {
     const [x, y] = proj4('EPSG:4326', 'EPSG:2100', [num(p.lng), num(p.lat)]);
     const name = (p.code ? p.code + ' ' : '') + (p.title || '');
@@ -669,6 +938,12 @@ function exportMySimpleGIS() {
       p.contact_name ? (p.contact_type === 'broker' ? 'Μεσίτης: ' : 'Ιδιοκτήτης: ') + p.contact_name + (p.contact_phone ? ' ' + p.contact_phone : '') : '',
     ].filter(Boolean).join(' · ');
     lines.push(['Πινέζα', q(name), q(comment), q(plotColor(p)), q('-'), q(x.toFixed(2) + ',' + y.toFixed(2))].join(','));
+    for (const mk of plotPois(p)) {
+      const [mx, my] = proj4('EPSG:4326', 'EPSG:2100', [mk.lng, mk.lat]);
+      const d = poiDist(mk, p);
+      lines.push(['Πινέζα', q(mk.label || 'Σημείο'), q(`Σημείο οικοπέδου ${p.code || p.title || ''}${d ? ' · ' + d + ' από το οικόπεδο' : ''}`), q(mk.color), q('-'), q(mx.toFixed(2) + ',' + my.toFixed(2))].join(','));
+      nPoi++;
+    }
   }
   const blob = new Blob(['\ufeff' + lines.join('\r\n') + '\r\n'], { type: 'text/csv;charset=utf-8;' });
   const a = document.createElement('a');
@@ -676,7 +951,7 @@ function exportMySimpleGIS() {
   a.download = 'plotmanager_' + fileSlug() + todayLocal() + '.csv';
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-  toast(`Εξήχθησαν ${list.length} οικόπεδα`, 'ok');
+  toast(`Εξήχθησαν ${list.length} οικόπεδα${nPoi ? ` και ${nPoi} σημεία` : ''}`, 'ok');
 }
 
 // Άνοιγμα maps.ktimatologio.gr κεντραρισμένου στο οικόπεδο.
@@ -713,18 +988,76 @@ function earthUrl(p) {
   return `https://earth.google.com/web/search/${ll}/@${ll},0a,${EARTH_VIEW.range}d,35y,${EARTH_VIEW.heading}h,${EARTH_VIEW.tilt}t,0r`;
 }
 
-// Εξαγωγή KML (Google Earth, QGIS, mySimpleGIS): ένα Placemark ανά οικόπεδο, φάκελοι ανά φάση
+// ---- KML: κοινά βοηθήματα ----
+const kx = (v) => String(v ?? '').replace(/[<>&'"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c]));
+const kmlColor = (hex) => { const h = hex.replace('#', ''); return 'ff' + h.slice(4, 6) + h.slice(2, 4) + h.slice(0, 2); };  // aabbggrr
+// στυλ οικοπέδου (s…) και σημείου (m…): η ετικέτα (name) φαίνεται πάντα στο Google Earth
+const kmlStyles = (plotCols, poiCols) => [...new Set(plotCols)].map((c) => `
+    <Style id="s${c.slice(1)}"><IconStyle><color>${kmlColor(c)}</color><scale>1.1</scale>
+      <Icon><href>https://maps.google.com/mapfiles/kml/paddle/wht-blank.png</href></Icon><hotSpot x="0.5" y="0" xunits="fraction" yunits="fraction"/></IconStyle>
+      <LabelStyle><scale>0.8</scale></LabelStyle></Style>`).join('') + [...new Set(poiCols)].map((c) => `
+    <Style id="m${c.slice(1)}"><IconStyle><color>${kmlColor(c)}</color><scale>0.9</scale>
+      <Icon><href>https://maps.google.com/mapfiles/kml/pushpin/wht-pushpin.png</href></Icon><hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/></IconStyle>
+      <LabelStyle><scale>0.85</scale></LabelStyle></Style>`).join('');
+function kmlPoiFolder(p) {
+  const pois = plotPois(p);
+  if (!pois.length) return '';
+  return `
+      <Folder><name>${kx('Σημεία ' + ([p.code, p.title].filter(Boolean).join(' ') || ''))}</name>${pois.map((mk) => {
+        const d = poiDist(mk, p);
+        return `
+        <Placemark><name>${kx(mk.label || 'Σημείο')}</name>${d ? `<description>${kx(d + ' από το οικόπεδο')}</description>` : ''}<styleUrl>#m${mk.color.slice(1)}</styleUrl>
+          <Point><coordinates>${mk.lng},${mk.lat},0</coordinates></Point></Placemark>`; }).join('')}
+      </Folder>`;
+}
+function downloadKml(kml, name) {
+  const blob = new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+// Google Earth 3D με το οικόπεδο ΚΑΙ τα σημεία του: το Earth web δέχεται μόνο μία πινέζα στο URL,
+// οπότε κατεβάζουμε KML με λοξή 3D κάμερα (LookAt) που ανοίγει στο Google Earth Pro ή εισάγεται στο Earth web.
+function exportPlotEarthKml() {
+  const p = CUR; if (!p) return;
+  const lat = num(p.lat), lng = num(p.lng);
+  if (lat === null || lng === null) return toast('Ορίστε πρώτα θέση οικοπέδου', 'err');
+  const pois = plotPois(p);
+  const pts = [[lat, lng], ...pois.map(mk => [mk.lat, mk.lng])];
+  const la = pts.map(q => q[0]), ln = pts.map(q => q[1]);
+  const cLat = (Math.min(...la) + Math.max(...la)) / 2, cLng = (Math.min(...ln) + Math.max(...ln)) / 2;
+  const span = Math.max(RULER ? RULER.distance(L.latLng(Math.min(...la), Math.min(...ln)), L.latLng(Math.max(...la), Math.max(...ln))) : 0, 1);
+  const range = Math.round(Math.min(Math.max(span * 2.2, EARTH_VIEW.range), 30000));
+  const name = [p.code, p.title].filter(Boolean).join(' ') || 'Οικόπεδο';
+  const desc = [p.municipality, p.address, num(p.area) !== null ? fmt(num(p.area)) + ' m²' : '', p.kaek ? 'ΚΑΕΚ ' + p.kaek : ''].filter(Boolean).join(' · ');
+  const kml = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>${kx('PlotManager – ' + name)}</name>
+    <LookAt><longitude>${cLng.toFixed(7)}</longitude><latitude>${cLat.toFixed(7)}</latitude><altitude>0</altitude>
+      <heading>${EARTH_VIEW.heading}</heading><tilt>${EARTH_VIEW.tilt}</tilt><range>${range}</range><altitudeMode>relativeToGround</altitudeMode></LookAt>${kmlStyles([plotColor(p)], pois.map(mk => mk.color))}
+    <Placemark><name>${kx(name)}</name>${desc ? `<description>${kx(desc)}</description>` : ''}
+      <styleUrl>#s${plotColor(p).slice(1)}</styleUrl><Point><coordinates>${lng},${lat},0</coordinates></Point></Placemark>${kmlPoiFolder(p)}
+  </Document>
+</kml>
+`;
+  // όνομα αρχείου μόνο με λατινικούς χαρακτήρες (κάποια προγράμματα σκαλώνουν σε ελληνικά ονόματα αρχείων)
+  const GR = 'αάβγδεέζηήθιίϊΐκλμνξοόπρσςτυύϋΰφχψωώ', LT = ['a','a','v','g','d','e','e','z','i','i','th','i','i','i','i','k','l','m','n','x','o','o','p','r','s','s','t','y','y','y','y','f','ch','ps','o','o'];
+  const slug = String(p.code || '').toLowerCase().split('').map(c => { const i = GR.indexOf(c); return i >= 0 ? LT[i] : c; }).join('').replace(/[^a-z0-9_-]+/g, '_').replace(/^_+|_+$/g, '');
+  downloadKml(kml, 'plotmanager_3d_' + (slug || String(p.id).slice(0, 8)) + '.kml');
+  toast(`Κατέβηκε KML με το οικόπεδο${pois.length ? ` και ${pois.length} σημεία` : ''}${DIRTY ? ' (περιλαμβάνει μη αποθηκευμένες αλλαγές)' : ''}. Άνοιγμα: Google Earth Pro → File → Open, ή earth.google.com → Έργα → Νέο → Εισαγωγή αρχείου KML`, DIRTY ? '' : 'ok');
+}
+
+// Εξαγωγή KML (Google Earth, QGIS, mySimpleGIS): ένα Placemark ανά οικόπεδο, φάκελοι ανά φάση, και τα σημεία του
 function exportKML() {
   const list = mapPlots();
   if (!list.length) return toast('Δεν υπάρχουν οικόπεδα με θέση για εξαγωγή', 'err');
-  const x = (v) => String(v ?? '').replace(/[<>&'"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c]));
+  const x = kx;
   const cdata = (v) => '<![CDATA[' + String(v).replace(/]]>/g, ']]]]><![CDATA[>') + ']]>';
-  const kmlColor = (hex) => { const h = hex.replace('#', ''); return 'ff' + h.slice(4, 6) + h.slice(2, 4) + h.slice(0, 2); };  // aabbggrr
   const proj = curProj();
-  const styles = [...new Set(list.map(plotColor))].map((c) => `
-    <Style id="s${c.slice(1)}"><IconStyle><color>${kmlColor(c)}</color><scale>1.1</scale>
-      <Icon><href>http://maps.google.com/mapfiles/kml/paddle/wht-blank.png</href></Icon><hotSpot x="0.5" y="0" xunits="fraction" yunits="fraction"/></IconStyle>
-      <LabelStyle><scale>0.8</scale></LabelStyle></Style>`).join('');
+  const styles = kmlStyles(list.map(plotColor), list.flatMap(p => plotPois(p).map(mk => mk.color)));
   const placemark = (p) => {
     const e = critEval(p), sc = scoreTotal(p);
     const rows = [
@@ -735,7 +1068,7 @@ function exportKML() {
       ['ΚΑΕΚ', p.kaek], ['Ο.Τ.', p.ot], ['Πολεοδομική Ενότητα', p.pol_enotita],
       ['Κριτήρια σύμβασης', e.all === null ? '' : (e.all ? 'ΝΑΙ' : 'ΟΧΙ') + (e.prelim ? ' (προκαταρκτικά)' : '')],
       ['Κατοικίες', p.units ? unitsLabel(p.units) : ''],
-      ['Βαθμολογία', sc === null ? '' : fmt(sc, 2) + ' / 10'],
+      ['Βαθμολογία', sc === null ? '' : fmt(sc, 2) + ' / 10' + (scorePartial(p) ? ` (μερική: ${scoreCount(p)}/${SCORE_CRITERIA.length})` : '')],
       ['ΕΓΚΡΙΣΗ', (p.approvals || []).join(', ')], ['ΑΠΟΡΡΙΨΗ', (p.rejections || []).join(', ')],
       ['Υπεύθυνος', p.contact_name ? (p.contact_type === 'broker' ? 'Μεσίτης: ' : 'Ιδιοκτήτης: ') + p.contact_name + (p.contact_phone ? ' ' + p.contact_phone : '') : ''],
     ].filter(([, v]) => v);
@@ -747,7 +1080,7 @@ function exportKML() {
       <Placemark><name>${x([p.code, p.title].filter(Boolean).join(' '))}</name>
         <description>${cdata(desc)}</description><styleUrl>#s${plotColor(p).slice(1)}</styleUrl>
         <ExtendedData>${Object.entries(data).filter(([, v]) => v !== null && v !== undefined && v !== '').map(([k, v]) => `<Data name="${k}"><value>${x(v)}</value></Data>`).join('')}</ExtendedData>
-        <Point><coordinates>${num(p.lng)},${num(p.lat)},0</coordinates></Point></Placemark>`;
+        <Point><coordinates>${num(p.lng)},${num(p.lat)},0</coordinates></Point></Placemark>${kmlPoiFolder(p)}`;
   };
   const folders = PHASES.map(([ph, label]) => {
     const items = list.filter((p) => phaseOf(p) === ph);
@@ -761,13 +1094,9 @@ function exportKML() {
   </Document>
 </kml>
 `;
-  const blob = new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'plotmanager_' + fileSlug() + todayLocal() + '.kml';
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-  toast(`Εξήχθησαν ${list.length} οικόπεδα σε KML`, 'ok');
+  downloadKml(kml, 'plotmanager_' + fileSlug() + todayLocal() + '.kml');
+  const nPoi = list.reduce((n, p) => n + plotPois(p).length, 0);
+  toast(`Εξήχθησαν ${list.length} οικόπεδα${nPoi ? ` και ${nPoi} σημεία` : ''} σε KML`, 'ok');
 }
 
 // ===================== ΣΥΓΚΡΙΤΙΚΟΣ ΠΙΝΑΚΑΣ (Ε.2) =====================
@@ -798,6 +1127,7 @@ const CMP_COLS = [
   { h: 'Αξία πώλησης (€)', v: (p, x) => x.e.value, d: 0 },
   { h: 'Περιθώριο (%)', v: (p, x) => x.e.marginPct, d: 1 },
   { h: 'Βαθμολογία /10', v: (p, x) => x.s, d: 2 },
+  { h: 'Βαθμολογημένα κριτήρια', v: (p, x) => x.s === null ? '' : `${x.n}/${SCORE_CRITERIA.length}` },
   { h: 'Εγκρίσεις', v: p => (p.approvals || []).length, d: 0 },
   { h: 'Απορρίψεις', v: p => (p.rejections || []).length, d: 0 },
   { h: 'Ώρες Τμ. Α', v: (p, x) => x.t.A.h, d: 1, admin: true },
@@ -808,8 +1138,10 @@ const cmpCols = (forExcel) => CMP_COLS.filter(c => !c.admin || (isAdmin() && (!f
 function cmpRows() {
   const withRej = $('cmpRej') ? $('cmpRej').checked : false;
   return PLOTS.filter(p => withRej || !isRejected(p))
-    .map(p => ({ p, x: { c: calcTerms(p), k: critEval(p), cs: checksSummary(p), e: econCalc(p), s: scoreTotal(p), t: taskStats(p) } }))
-    .sort((a, b) => (b.x.s ?? -1) - (a.x.s ?? -1) || String(a.p.code || '').localeCompare(String(b.p.code || ''), 'el', { numeric: true }));
+    .map(p => ({ p, x: { c: calcTerms(p), k: critEval(p), cs: checksSummary(p), e: econCalc(p), s: scoreTotal(p), n: scoreCount(p), t: taskStats(p) } }))
+    // πρώτα όσα έχουν πλήρη βαθμολογία (όλα τα κριτήρια), μετά οι μερικές, μετά χωρίς βαθμολογία
+    .sort((a, b) => (b.x.n === SCORE_CRITERIA.length) - (a.x.n === SCORE_CRITERIA.length) || (b.x.s ?? -1) - (a.x.s ?? -1)
+      || String(a.p.code || '').localeCompare(String(b.p.code || ''), 'el', { numeric: true }));
 }
 async function renderCompare(reload) {
   if (reload) { try { await loadPlots(); } catch (e) { toast(e.message, 'err'); } }
@@ -825,10 +1157,11 @@ async function renderCompare(reload) {
       const v = c.v(p, x);
       if (c.d !== undefined) return `<td class="n">${v === null || v === undefined ? '—' : fmt(v, c.d)}</td>`;
       if (c.h === 'Φάση') return `<td>${phaseBadge(p)}</td>`;
+      if (c.h === 'Βαθμολογημένα κριτήρια') return `<td class="n${x.n && x.n < SCORE_CRITERIA.length ? ' warn' : ''}">${esc(v) || '—'}</td>`;
       if (c.h === 'Κριτήρια σύμβασης') { const st = v.startsWith('ΝΑΙ') ? '<span class="ok">✓ ναι</span>' : v.startsWith('ΟΧΙ') ? '<span class="bad">✗ όχι</span>' : '—'; return `<td title="${v.endsWith('*') ? 'με προκαταρκτικές τιμές Α.2' : ''}">${st}${v.endsWith('*') ? '*' : ''}</td>`; }
       return `<td>${esc(v)}</td>`;
     }).join('')}</tr>`).join('')}</tbody></table>
-    <div class="note" style="margin-top:8px">* κριτήρια με προκαταρκτικές τιμές του πρώτου ελέγχου (Α.2). Ταξινόμηση κατά βαθμολογία. Πατήστε μια γραμμή για να ανοίξει ο φάκελος.${isAdmin() ? ' Οι στήλες ωρών εμφανίζονται μόνο στον διαχειριστή.' : ''}</div>`
+    <div class="note" style="margin-top:8px">* κριτήρια με προκαταρκτικές τιμές του πρώτου ελέγχου (Α.2). Ταξινόμηση κατά βαθμολογία: πρώτα όσα έχουν βαθμό σε όλα τα κριτήρια, μετά όσα έχουν μερική βαθμολογία. Πατήστε μια γραμμή για να ανοίξει ο φάκελος.${isAdmin() ? ' Οι στήλες ωρών εμφανίζονται μόνο στον διαχειριστή.' : ''}</div>`
     : '<div class="empty">Δεν υπάρχουν οικόπεδα</div>'}`;
 }
 function loadScript(src) {
@@ -872,28 +1205,29 @@ function plotBadges(p) {
   if (p.approvals && p.approvals.length) b.push(`<span class="bdg p" title="${esc(p.approvals.join(', '))}">ΕΓΚΡΙΣΗ ×${p.approvals.length}</span>`);
   if (p.units) b.push(`<span class="bdg b">${esc(unitsLabel(p.units))}</span>`);
   const cs = checksSummary(p); if (cs.problem) b.push(`<span class="bdg r">⚠ ${cs.problem} πρόβλ. Γ.3</span>`);
-  const sc = scoreTotal(p); if (sc !== null) b.push(`<span class="bdg">★ ${fmt(sc, 1)}</span>`);
+  const sc = scoreTotal(p); if (sc !== null) b.push(`<span class="bdg" title="${scorePartial(p) ? `Μερική βαθμολογία (${scoreCount(p)}/${SCORE_CRITERIA.length} κριτήρια)` : 'Σταθμισμένη βαθμολογία'}">★ ${fmt(sc, 1)}${scorePartial(p) ? '*' : ''}</span>`);
   if (p.remarks_count) b.push(`<span class="bdg">💬 ${p.remarks_count}</span>`);
   if (p.links_count) b.push(`<span class="bdg">📎 ${p.links_count}</span>`);
   if (p.my_rejected) b.push('<span class="bdg r">η ψήφος μου: ΑΠΟΡΡΙΨΗ</span>');
   if (p.my_approved) b.push('<span class="bdg p">η ψήφος μου: ΕΓΚΡΙΣΗ</span>');
   return b.join('');
 }
+// σύγκριση χωρίς τόνους/διαλυτικά και κεφαλαία, με ς = σ («παλληνη» βρίσκει «Παλλήνη»)
+const fold = (v) => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/ς/g, 'σ');
 function filteredPlots() {
-  const q = SEARCH.trim().toLowerCase();
+  const q = fold(SEARCH.trim());
   return PLOTS.filter(p => {
     const rejected = isRejected(p);
     if (FILTER === 'active' && rejected) return false;
     if (FILTER === 'rejected' && !rejected) return false;
     if (FILTER === 'B' && !['B', 'done'].includes(phaseOf(p))) return false;
     if (!q) return true;
-    return [p.code, p.title, p.address, p.municipality, p.kaek, p.ot, p.pol_enotita, p.pe_number, p.contact_name].some(v => String(v || '').toLowerCase().includes(q));
+    return [p.code, p.title, p.address, p.municipality, p.kaek, p.ot, p.pol_enotita, p.pe_number, p.contact_name].some(v => fold(v).includes(q));
   });
 }
 function renderList() {
-  CUR = null; DIRTY = false; PICK = false; $('map').classList.remove('picking');
+  CUR = null; DIRTY = false; PICK = false; $('map').classList.remove('picking'); drawPoi();
   if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
-  const list = filteredPlots();
   const chips = [['all', 'Όλα'], ['active', 'Ενεργά'], ['B', 'Τμήμα Β'], ['rejected', 'Απορριφθέντα']]
     .map(([k, t]) => `<button class="chip ${FILTER === k ? 'on' : ''}" onclick="FILTER='${k}';renderList()">${t}</button>`).join('');
   $('panel').innerHTML = `
@@ -926,7 +1260,7 @@ async function newPlot() {
     const n = PLOTS.reduce((m, p) => { const x = /(\d+)\s*$/.exec(p.code || ''); return x ? Math.max(m, +x[1]) : m; }, 0) + 1;
     if (!PROJ) return toast('Δημιουργήστε πρώτα ένα έργο (⚙ Έργα)', 'err');
     const p = await api('plots', { method: 'POST', body: { project: PROJ, code: 'Ο-' + String(n).padStart(2, '0'), title: 'Νέο οικόπεδο' } });
-    await loadPlots(); await openPlot(p.id); setTab('info');
+    await loadPlots(); await openPlot(p.id); if (CUR && CUR.id === p.id) setTab('info');
   } catch (e) { toast(e.message, 'err'); }
 }
 
@@ -940,11 +1274,14 @@ async function openPlot(id) {
     if (seq !== OPEN_SEQ) return;          // πατήθηκε στο μεταξύ άλλο οικόπεδο
     CUR = d.plot; CUR_REVIEWS = d.reviews || []; DIRTY = false; PICK = false; $('map').classList.remove('picking');
     CUR.phase = CUR.phase || 'A'; CUR.tasks = CUR.tasks || {}; CUR.checks = CUR.checks || {}; CUR.scores = CUR.scores || {};
+    CUR.markers = Array.isArray(CUR.markers) ? CUR.markers : [];
     if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
     renderDetail();
     renderMarkers();
     const lat = num(CUR.lat), lng = num(CUR.lng);
-    if (lat !== null && lng !== null) map.setView([lat, lng], Math.max(map.getZoom(), 17));
+    const pts = (CUR.markers || []).map(mk => [mk.lat, mk.lng]); if (lat !== null && lng !== null) pts.push([lat, lng]);
+    if (pts.length > 1) map.fitBounds(pts, { padding: [50, 50], maxZoom: 18 });
+    else if (lat !== null && lng !== null) map.setView([lat, lng], Math.max(map.getZoom(), 17));
   } catch (e) { toast(e.message, 'err'); }
 }
 function backToList() {
@@ -980,6 +1317,7 @@ function renderDetail() {
       <span class="note">Ενημ.: ${fmtDT(CUR.updated)}</span>
     </div>`;
   renderTab();
+  drawPoi();
 }
 function setTab(t) {
   // ένα άκυρο πεδίο δεν έχει περάσει στα δεδομένα· αν αλλάξει η καρτέλα θα χανόταν σιωπηλά
@@ -1015,6 +1353,7 @@ function onField(e) {
     if (!Number.isNaN(val) && val !== null) {
       if (!el.dataset.coord && val < 0) val = NaN;                       // όχι αρνητικές τιμές
       if (k.startsWith('scores.') && val > 10) val = NaN;               // βαθμός 0–10
+      if (k === 'coverage' && val > 100) val = NaN;                      // κάλυψη ως ποσοστό
     }
     el.classList.toggle('invalid', Number.isNaN(val));
     if (Number.isNaN(val)) { markDirty(); return; }   // άκυρο: δεν αλλάζει την αποθηκευμένη τιμή
@@ -1033,6 +1372,14 @@ function setPath(o, path, v) {
 // ενημέρωση υπολογισμών χωρίς επανασχεδίαση της φόρμας
 function renderLive(k, el, val) {
   if (k === 'phase') { applyPhaseRules(val); renderTab(); return; }
+  if (k.startsWith('markers.')) { drawPoi(); if (k.endsWith('.color')) renderTab(); return; }
+  if (k === 'lat' || k === 'lng') {
+    const la = num(CUR.lat), ln = num(CUR.lng);
+    if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
+    if (la !== null && ln !== null && la >= -90 && la <= 90 && ln >= -180 && ln <= 180) tempMarker = L.marker([la, ln]).addTo(map);
+  }
+  if ((k === 'lat' || k === 'lng') && TAB === 'info')
+    document.querySelectorAll('.poi-row .poi-d').forEach((el, i) => { if (CUR.markers[i]) el.textContent = poiDist(CUR.markers[i]); });
   if (k === 'kaek' && $('kaekWarn')) $('kaekWarn').classList.toggle('hidden', kaekOk(val));
   if (TAB === 'terms') renderCalc();
   if (/^tasks\.\w+\.status$/.test(k)) { const t = el.closest('.task'); if (t) t.className = 'task st-' + (val || 'todo'); }
@@ -1084,11 +1431,16 @@ function tabInfo(b) {
   </div>
   <div class="row" style="margin-top:8px">
     ${isAdmin() ? '<button class="btn primary sm" onclick="startPick()">📍 Ορισμός από τον χάρτη</button>' : ''}
-    ${has ? `<button class="btn sm" onclick="map.setView([${lat},${lng}],18)">Εστίαση</button>
+    ${has ? `<button class="btn sm" onclick="copyCoords()" title="Αντιγραφή «πλάτος, μήκος» για Google Maps, Waze, GPS κ.λπ.">📋 Αντιγραφή</button>
+      <button class="btn sm" onclick="map.setView([${lat},${lng}],18)">Εστίαση</button>
       <a class="btn sm" target="_blank" rel="noopener" href="https://www.google.com/maps?q=${lat},${lng}">Google Maps ↗</a>` : '<span class="note">Δεν έχει οριστεί θέση</span>'}
-    ${has ? `<a class="btn sm" target="_blank" rel="noopener" href="${esc(earthUrl(CUR))}" title="Google Earth σε 3D με πινέζα στο οικόπεδο">Google Earth 3D ↗</a>` : ''}
+    ${has ? `<a class="btn sm" target="_blank" rel="noopener" href="${esc(earthUrl(CUR))}" title="Google Earth σε 3D με πινέζα στο οικόπεδο">Google Earth 3D ↗</a>
+      <button class="btn sm" onclick="exportPlotEarthKml()" title="KML με οικόπεδο και σημεία, σε λοξή 3D όψη, για Google Earth">⬇ Earth 3D + σημεία (KML)</button>` : ''}
     ${has || CUR.kaek ? `<button class="btn sm" onclick="openKtimatologio()" title="Ανοίγει το maps.ktimatologio.gr κεντραρισμένο στο οικόπεδο (και αντιγράφει το ΚΑΕΚ)">Κτηματολόγιο ↗</button>` : ''}
-  </div></fieldset>
+  </div>
+  <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:8px"><span class="note">Σημεία στον χάρτη (ετικέτες: στάσεις, όρια, σημεία αναφοράς κ.λπ.)</span>
+  ${poiListHtml()}</div>
+  </fieldset>
 
   <fieldset><legend>Υπεύθυνος επικοινωνίας</legend>
     <div class="radios">
@@ -1161,7 +1513,8 @@ function calcTerms(P) {
   const usable = dom !== null && cov !== null && lvLimit !== null ? Math.min(dom, cov * lvLimit) : dom;
   const artA = E !== null && minA !== null ? E >= minA : null;
   const artF = fr !== null && minF !== null ? fr >= minF : null;
-  // Πόσες κατοικίες χωρούν με το ελάχιστο εμβαδόν της σύμβασης (2 ή 3)
+  // Πόσες κατοικίες χωρούν (3, 2 ή 0): καθαρό εμβαδόν (αξιοποιήσιμη δόμηση × λόγος καθαρού/μικτού)
+  // προς το ελάχιστο εμβαδόν κατοικίας της σύμβασης
   const hmin = CFG.contract.house_min_m2, net = usable === null ? null : usable * CFG.contract.net_ratio;
   const housesFit = net === null ? null : (net >= 3 * hmin ? 3 : net >= 2 * hmin ? 2 : 0);
   return { E, dom, cov, levels, lvLimit, usable, net, artA, artF, housesFit };
@@ -1201,6 +1554,7 @@ function printReport() {
   const P = CUR;
   const w = window.open('', '_blank');
   if (!w) return toast('Ο browser μπλόκαρε το νέο παράθυρο. Επιτρέψτε τα αναδυόμενα παράθυρα για αυτό το site.', 'err');
+  if (DIRTY) toast('Η αναφορά περιλαμβάνει μη αποθηκευμένες αλλαγές. Αποθηκεύστε για να ταυτίζεται με τα αποθηκευμένα στοιχεία.');
   const v = (x) => (x === null || x === undefined || String(x).trim() === '') ? '—' : esc(x);
   const pre = (x) => (x && String(x).trim()) ? `<div class="pre">${esc(x)}</div>` : '—';
   const n = (x, d = 2, u = '') => num(x) === null ? '—' : fmt(num(x), d) + (u ? ' ' + u : '');
@@ -1273,6 +1627,9 @@ table{width:100%;border-collapse:collapse}
 .url{font-size:8pt;color:#57606a;word-break:break-all}
 .rev{border-left:3px solid #d0d7de;padding:3px 0 3px 8px;margin-bottom:6px;break-inside:avoid}
 .rev.rj{border-left-color:#cf222e}
+.poi-lbl{background:rgba(255,255,255,.95);color:#1f2328;border:1px solid #8c959f;border-radius:3px;padding:0 6px;font-size:10.5px;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.3);white-space:nowrap}
+.poi-lbl:before{display:none}
+.poi-ico svg{display:block;filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.55))}
 .list td .note{margin-top:1px}
 .rev .hd{font-size:9pt;color:#57606a}
 footer{margin-top:18px;padding-top:6px;border-top:1px solid #d0d7de;font-size:8.5pt;color:#57606a;display:flex;justify-content:space-between}
@@ -1316,6 +1673,9 @@ ${P.pe_notes ? `<div style="margin-top:4px"><span class="note">Σημειώσε�
 <section><h2>2. Θέση</h2>
 ${kv([['WGS84 (φ, λ)', has ? `${lat.toFixed(6)}, ${lng.toFixed(6)}` : '—'], ["ΕΓΣΑ'87", egsa], ['Google Maps', has ? `<a href="https://www.google.com/maps?q=${lat},${lng}">maps.google.com/?q=${lat},${lng}</a>` : '—'], ['Κτηματολόγιο', has ? `<a href="${esc(ktimaUrl(P))}">maps.ktimatologio.gr (κεντραρισμένο)</a>` : '—'], ['Google Earth', has ? `<a href="${esc(earthUrl(P))}">3D όψη με πινέζα</a>` : '—']])}
 ${has ? '<div id="rmap"></div>' : '<div class="empty">Δεν έχει οριστεί θέση στον χάρτη.</div>'}
+${(P.markers || []).length ? `<div class="note" style="margin-top:8px">Σημεία στον χάρτη</div>
+<table class="list"><tr><th style="width:8mm"></th><th>Ετικέτα</th><th>WGS84 (φ, λ)</th><th style="width:28mm">Απόσταση από οικόπεδο</th></tr>
+${P.markers.map(mk => `<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${esc(mk.color)};border:1px solid #0d1117"></span></td><td>${esc(mk.label || '—')}</td><td>${mk.lat.toFixed(6)}, ${mk.lng.toFixed(6)}</td><td>${poiDist(mk) || '—'}</td></tr>`).join('')}</table>` : ''}
 </section>
 
 <section><h2>3. Υπεύθυνος επικοινωνίας</h2>
@@ -1365,7 +1725,7 @@ ${P.market_notes ? `<div class="note">Δ.1 Οικοδομική δραστηρι
 
 <section><h2>9. Βαθμολόγηση</h2>
 <table class="calc">${SCORE_CRITERIA.map(([k, l, w]) => `<tr><td>${l} <span class="note">(βάρος ${w}%)</span></td><td>${num((P.scores || {})[k]) === null ? '—' : fmt(num(P.scores[k]), 1) + ' / 10'}</td></tr>`).join('')}
-<tr><td><b>Σταθμισμένη βαθμολογία</b></td><td>${scoreTotal(P) === null ? '—' : fmt(scoreTotal(P), 2) + ' / 10'}</td></tr></table>
+<tr><td><b>Σταθμισμένη βαθμολογία</b>${scoreTotal(P) === null ? '' : ` (${scoreCount(P)}/${SCORE_CRITERIA.length} κριτήρια${scorePartial(P) ? ', μερική' : ''})`}</td><td>${scoreTotal(P) === null ? '—' : fmt(scoreTotal(P), 2) + ' / 10'}</td></tr></table>
 </section>
 
 <section><h2>10. Ημερολόγιο εργασιών</h2>
@@ -1396,12 +1756,20 @@ var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { ma
 var ko = ${ktimaOpts}; ko.crs = L.CRS.EPSG4326;
 var kt = L.tileLayer.wms(${JSON.stringify(CFG.ktimaWms)}, ko);
 L.circleMarker([${lat}, ${lng}], { radius: 9, color: '#cf222e', weight: 3, fillColor: '#cf222e', fillOpacity: .25 }).addTo(m);
+var pois = ${JSON.stringify((P.markers || []).map(mk => ({ lat: mk.lat, lng: mk.lng, label: esc(mk.label || '—'), html: poiSvg(mk.color) })))};
+pois.forEach(function (p) {
+  L.marker([p.lat, p.lng], { icon: L.divIcon({ className: 'poi-ico', html: p.html, iconSize: [24, 32], iconAnchor: [12, 31], tooltipAnchor: [0, -29] }), keyboard: false })
+    .bindTooltip(p.label, { permanent: true, direction: 'top', className: 'poi-lbl' }).addTo(m);
+});
+if (pois.length) m.fitBounds(L.latLngBounds([[${lat}, ${lng}]].concat(pois.map(function (p) { return [p.lat, p.lng]; }))).pad(0.2), { maxZoom: 18 });
 L.control.scale({ imperial: false }).addTo(m);
 function base(i) {
   if (i) { m.removeLayer(osm); kt.addTo(m); } else { m.removeLayer(kt); osm.addTo(m); }
   document.getElementById('bOsm').classList.toggle('on', !i); document.getElementById('bKt').classList.toggle('on', !!i);
 }
 window.addEventListener('beforeprint', function () { m.invalidateSize(); });
+${addRuler.toString()}
+addRuler(m, document);
 `;
     const sc = w.document.createElement('script');
     sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
@@ -1450,7 +1818,8 @@ const CHECKS = [
   ['c11', 'Ύπαρξη κτισμάτων, κατεδάφιση (και πιθανή υπαγωγή στον Ν.4495/17)'],
 ];
 const CHECK_ST = [['', '—'], ['ok', '✓ ΟΚ'], ['problem', '⚠ Πρόβλημα'], ['na', 'Δ/Α']];
-// Κριτήρια βαθμολόγησης (Ε.1): [κλειδί, τίτλος, βάρος %]
+// Κριτήρια βαθμολόγησης (Ε.1): [κλειδί, τίτλος, βάρος %]. Τα βάρη εδώ είναι οι προεπιλογές·
+// η applyProjectSettings τα αντικαθιστά με του τρέχοντος έργου.
 const SCORE_CRITERIA = [
   ['loc', 'Θέση και πρόσβαση', 25],
   ['plan', 'Πολεοδομική καταλληλότητα', 25],
@@ -1472,6 +1841,10 @@ function checksSummary(P) {
   for (const [k] of CHECKS) { const st = ((P.checks || {})[k] || {}).state || ''; if (st) r[st]++; else r.open++; }
   return r;
 }
+// πόσα κριτήρια έχουν βαθμό: η σταθμισμένη βαθμολογία είναι μέσος όρος μόνο αυτών,
+// άρα με λιγότερα από όλα είναι «μερική» και σημειώνεται με *
+const scoreCount = (P) => SCORE_CRITERIA.filter(([k]) => num((P.scores || {})[k]) !== null).length;
+const scorePartial = (P) => { const n = scoreCount(P); return n > 0 && n < SCORE_CRITERIA.length; };
 function scoreTotal(P) {
   let s = 0, w = 0;
   for (const [k, , wt] of SCORE_CRITERIA) { const v = num((P.scores || {})[k]); if (v !== null) { s += v * wt; w += wt; } }
@@ -1623,13 +1996,21 @@ function econTable(P) {
   </table><div class="note" style="margin-top:4px">Η αξία πώλησης υπολογίζεται επί της αξιοποιήσιμης δόμησης. Ενδεικτική ανάλυση.</div>`;
 }
 function scoreHtml(P) {
-  const t = scoreTotal(P), n = SCORE_CRITERIA.filter(([k]) => num((P.scores || {})[k]) !== null).length;
+  const t = scoreTotal(P), n = scoreCount(P);
   return `<table class="calc"><tr><td><b>Σταθμισμένη βαθμολογία</b> <span class="note">(${n}/${SCORE_CRITERIA.length} κριτήρια)</span></td><td>${t === null ? '—' : fmt(t, 2) + ' / 10'}</td></tr></table>`;
 }
 
-// Οι απαντήσεις ημερολογίου/συνδέσμων φέρνουν και τη νέα χρονοσφραγίδα του οικοπέδου
+// Οι απαντήσεις ημερολογίου/συνδέσμων φέρνουν και τη νέα χρονοσφραγίδα και έκδοση (rev) του οικοπέδου,
+// ώστε η επόμενη Αποθήκευση να μη θεωρηθεί λανθασμένα σύγκρουση
 function applyEv(r) { CUR.events = r.events; CUR.updated = r.updated; CUR.rev = r.rev; }
 function applyLk(r) { CUR.links = r.links; CUR.updated = r.updated; CUR.rev = r.rev; }
+// Αίτημα για το ανοιχτό οικόπεδο: αν στο μεταξύ άνοιξε άλλο, η απάντηση ΔΕΝ εφαρμόζεται στο νέο
+async function plotReq(path, opts, apply) {
+  const id = CUR.id;
+  const r = await api(`plots/${id}/${path}`, opts);
+  if (!CUR || CUR.id !== id) return false;
+  apply(r); renderDetail(); return true;
+}
 
 // --- Ημερολόγιο ---
 function tabDiary(b) {
@@ -1656,17 +2037,17 @@ function tabDiary(b) {
 async function addEvent() {
   const body = { date: $('evDate').value, title: $('evTitle').value.trim(), notes: $('evNotes').value, done: $('evDone').checked };
   if (!body.title) return toast('Συμπληρώστε την εργασία', 'err');
-  try { applyEv(await api(`plots/${CUR.id}/events`, { method: 'POST', body })); renderDetail(); toast('Προστέθηκε', 'ok'); }
+  try { await plotReq('events', { method: 'POST', body }, applyEv); toast('Προστέθηκε', 'ok'); }
   catch (e) { toast(e.message, 'err'); }
 }
 async function toggleEvent(eid) {
   const ev = CUR.events.find(e => e.id === eid); if (!ev) return;
-  try { applyEv(await api(`plots/${CUR.id}/events/${eid}`, { method: 'PUT', body: { done: !ev.done } })); renderDetail(); }
+  try { await plotReq(`events/${eid}`, { method: 'PUT', body: { done: !ev.done } }, applyEv); }
   catch (e) { toast(e.message, 'err'); }
 }
 async function delEvent(eid) {
   if (!confirm('Διαγραφή εγγραφής;')) return;
-  try { applyEv(await api(`plots/${CUR.id}/events/${eid}`, { method: 'DELETE' })); renderDetail(); }
+  try { await plotReq(`events/${eid}`, { method: 'DELETE' }, applyEv); }
   catch (e) { toast(e.message, 'err'); }
 }
 
@@ -1706,16 +2087,16 @@ function openLightbox(src) { $('lbImg').src = src; $('lightbox').classList.remov
 async function addLink() {
   const body = { kind: $('lkKind').value, title: $('lkTitle').value.trim(), url: $('lkUrl').value.trim() };
   if (!body.url) return toast('Επικολλήστε τον σύνδεσμο', 'err');
-  try { applyLk(await api(`plots/${CUR.id}/links`, { method: 'POST', body })); renderDetail(); toast('Προστέθηκε', 'ok'); }
+  try { await plotReq('links', { method: 'POST', body }, applyLk); toast('Προστέθηκε', 'ok'); }
   catch (e) { toast(e.message, 'err'); }
 }
 async function delLink(lid) {
   if (!confirm('Αφαίρεση συνδέσμου; (Το αρχείο στο Dropbox δεν διαγράφεται.)')) return;
-  try { applyLk(await api(`plots/${CUR.id}/links/${lid}`, { method: 'DELETE' })); renderDetail(); }
+  try { await plotReq(`links/${lid}`, { method: 'DELETE' }, applyLk); }
   catch (e) { toast(e.message, 'err'); }
 }
 
-// --- Παρατηρήσεις + ΑΠΟΡΡΙΨΗ ---
+// --- Παρατηρήσεις και αποφάσεις ΕΓΚΡΙΣΗ / ΑΠΟΡΡΙΨΗ ---
 function tabReview(b) {
   const mine = CUR_REVIEWS.find(r => r.username === ME.username) || {};
   const others = CUR_REVIEWS.filter(r => r.username !== ME.username);
@@ -1741,9 +2122,9 @@ function tabReview(b) {
 }
 async function saveReview() {
   try {
-    const rec = await api(`plots/${CUR.id}/review`, { method: 'PUT', body: { remarks: $('rvText').value, rejected: $('rvRej').checked, approved: $('rvApp').checked } });
-    CUR_REVIEWS = [rec, ...CUR_REVIEWS.filter(r => r.username !== ME.username)];
-    await loadPlots(); renderDetail(); renderMarkers(); toast('Αποθηκεύτηκε', 'ok');
+    await plotReq('review', { method: 'PUT', body: { remarks: $('rvText').value, rejected: $('rvRej').checked, approved: $('rvApp').checked } },
+      (rec) => { CUR_REVIEWS = [rec, ...CUR_REVIEWS.filter(r => r.username !== ME.username)]; });
+    await loadPlots(); if (CUR) renderDetail(); renderMarkers(); toast('Αποθηκεύτηκε', 'ok');
   } catch (e) { toast(e.message, 'err'); }
 }
 
@@ -1753,30 +2134,44 @@ const PLOT_FIELDS = ['code','title','address','municipality','area','price','kae
   'zone','sd','coverage','max_height','max_floors','frontage','min_area','min_frontage','units','terms_notes',
   'phase','dist_center','dist_sea','road_width_plan','road_width_site','access_metro','access_tram','access_bus','access_notes',
   'market_notes','new_sale_m2','build_cost_m2','other_costs','tasks','checks','scores','crit_dist_sea',
-  'ot','pol_enotita','pe_number','pe_decision','pe_date','pe_registry','pe_notes','project'];
+  'ot','pol_enotita','pe_number','pe_decision','pe_date','pe_registry','pe_notes','project','markers'];
+let SAVING = false;
 async function savePlot(force) {
+  if (SAVING || !CUR) return;
   if (CUR.dropbox && !/^https?:\/\//i.test(CUR.dropbox)) return toast('Ο σύνδεσμος Dropbox πρέπει να ξεκινά με https://', 'err');
-  if (document.querySelector('#tabBody input.invalid')) return toast('Διορθώστε τα πεδία με κόκκινο περίγραμμα (μη έγκυρος ή αρνητικός αριθμός, βαθμός πάνω από 10).', 'err');
+  if (document.querySelector('#tabBody input.invalid')) return toast('Διορθώστε τα πεδία με κόκκινο περίγραμμα (μη έγκυρος ή αρνητικός αριθμός, βαθμός πάνω από 10, κάλυψη πάνω από 100%).', 'err');
   if ((num(CUR.lat) === null) !== (num(CUR.lng) === null)) return toast('Συμπληρώστε και τις δύο συντεταγμένες ή καμία.', 'err');
   const body = { base_rev: CUR.rev || 0, force: !!force };
-  for (const k of PLOT_FIELDS) if (k in CUR) body[k] = CUR[k] === undefined ? null : CUR[k];
+  const sent = {};                                  // στιγμιότυπο, για να μη χαθεί ό,τι γραφτεί όσο περιμένουμε
+  for (const k of PLOT_FIELDS) if (k in CUR) { body[k] = CUR[k] === undefined ? null : CUR[k]; sent[k] = JSON.stringify(body[k]); }
+  const id = CUR.id;
+  let retry = false, reload = false;
+  SAVING = true;
   try {
-    const p = await api('plots/' + CUR.id, { method: 'PUT', body });
-    CUR = { ...CUR, ...p }; DIRTY = false;
+    const p = await api('plots/' + id, { method: 'PUT', body });
+    if (!CUR || CUR.id !== id) return;              // στο μεταξύ άνοιξε άλλο οικόπεδο
+    // πεδία που άλλαξαν όσο γινόταν η αποθήκευση: κρατάμε τη νεότερη τιμή και μένουν «μη αποθηκευμένα»
+    const later = Object.keys(sent).filter(k => JSON.stringify(CUR[k] === undefined ? null : CUR[k]) !== sent[k]);
+    const keep = {}; for (const k of later) keep[k] = CUR[k];
+    CUR = { ...CUR, ...p, ...keep }; DIRTY = later.length > 0;
     if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
     if (CUR.project !== PROJ) {                     // μεταφέρθηκε σε άλλο έργο
       const to = PROJECTS.find(x => x.id === CUR.project);
-      await loadPlots(); renderList(); return toast(`Το οικόπεδο μεταφέρθηκε στο έργο «${to ? to.name : ''}»`, 'ok');
+      DIRTY = false; await loadPlots(); renderList(); return toast(`Το οικόπεδο μεταφέρθηκε στο έργο «${to ? to.name : ''}»`, 'ok');
     }
-    await loadPlots(); renderDetail(); renderMarkers(); toast('Αποθηκεύτηκε', 'ok');
+    await loadPlots();
+    if (!CUR || CUR.id !== id) return;              // άνοιξε άλλο οικόπεδο όσο ανανεωνόταν η λίστα
+    if (DIRTY) { markDirty(); renderMarkers(); toast('Αποθηκεύτηκε. Οι αλλαγές που κάνατε στο μεταξύ θέλουν νέα Αποθήκευση.'); }
+    else { renderDetail(); renderMarkers(); toast('Αποθηκεύτηκε', 'ok'); }
   } catch (e) {
     if (e.status === 409) {
       const who = e.data && e.data.updated_by ? ` (${e.data.updated_by}, ${fmtDT(e.data.updated)})` : '';
-      if (confirm(`${e.message}${who}\n\nOK: να αποθηκευτούν οι δικές σας αλλαγές πάνω από τις άλλες.\nΆκυρο: να φορτωθεί η νέα έκδοση (οι αλλαγές σας χάνονται).`)) return savePlot(true);
-      DIRTY = false; return openPlot(CUR.id);
-    }
-    toast(e.message, 'err');
-  }
+      if (confirm(`${e.message}${who}\n\nOK: να αποθηκευτούν οι δικές σας αλλαγές πάνω από τις άλλες.\nΆκυρο: να φορτωθεί η νέα έκδοση (οι αλλαγές σας χάνονται).`)) retry = true;
+      else reload = true;
+    } else toast(e.message, 'err');
+  } finally { SAVING = false; }
+  if (retry) return savePlot(true);
+  if (reload && CUR && CUR.id === id) { DIRTY = false; return openPlot(id); }
 }
 async function deletePlot() {
   if (!confirm(`Οριστική διαγραφή του οικοπέδου «${CUR.title}» μαζί με ημερολόγιο και παρατηρήσεις;`)) return;
@@ -1786,8 +2181,65 @@ async function deletePlot() {
 window.addEventListener('beforeunload', (e) => { if (DIRTY) { e.preventDefault(); e.returnValue = ''; } });
 
 // ===================== MODALS =====================
-function openModal(html) { $('modalBox').innerHTML = html; $('modal').classList.remove('hidden'); }
+function openModal(html, cls = '') { $('modalBox').className = cls; $('modalBox').innerHTML = html; $('modal').classList.remove('hidden'); }
 function closeModal() { $('modal').classList.add('hidden'); }
+
+// --- Βοήθεια: το help.md (οδηγίες χρήσης, χωρίς τεχνικά στοιχεία) εμφανίζεται μέσα στην εφαρμογή ---
+// Μικρός μετατροπέας Markdown (επικεφαλίδες, λίστες, πίνακες, κώδικας, έντονα, σύνδεσμοι), χωρίς εξωτερική βιβλιοθήκη.
+function mdToHtml(src) {
+  const inline = (t) => esc(t)
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+|mailto:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+    .replace(/(^|[\s(])([\w.+-]+@[\w-]+\.[\w.-]+\w)/g, '$1<a href="mailto:$2">$2</a>');
+  const lines = src.replace(/\r/g, '').split('\n'), out = [];
+  const stack = [];                                   // ανοιχτές λίστες: { ind, tag }
+  const closeTo = (ind) => { while (stack.length && stack[stack.length - 1].ind >= ind) out.push(`</li></${stack.pop().tag}>`); };
+  for (let i = 0; i < lines.length; i++) {
+    const ln = lines[i], m = ln.match(/^(\s*)(.*)$/), ind = m[1].length, t = m[2];
+    if (t.startsWith('```')) {                         // μπλοκ κώδικα
+      const buf = []; while (++i < lines.length && !lines[i].trim().startsWith('```')) buf.push(lines[i]);
+      closeTo(0); out.push(`<pre><code>${esc(buf.join('\n'))}</code></pre>`); continue;
+    }
+    if (!t) { continue; }
+    if (t.startsWith('|')) {                           // πίνακας
+      const rows = []; i--;
+      while (++i < lines.length && lines[i].trim().startsWith('|')) rows.push(lines[i].trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim()));
+      i--;
+      const body = rows.filter(r => !r.every(c => /^:?-+:?$/.test(c)));
+      const tbl = `<table>${body.map((r, k) => `<tr>${r.map(c => k ? `<td>${inline(c)}</td>` : `<th>${inline(c)}</th>`).join('')}</tr>`).join('')}</table>`;
+      if (stack.length && ind > 0) out.push(tbl); else { closeTo(0); out.push(tbl); }
+      continue;
+    }
+    if (/^-{3,}$/.test(t) && ind === 0) { closeTo(0); out.push('<hr>'); continue; }
+    const h = t.match(/^(#{1,3})\s+(.*)$/);
+    if (h && ind === 0) { closeTo(0); out.push(`<h${h[1].length}>${inline(h[2])}</h${h[1].length}>`); continue; }
+    const li = t.match(/^([-*]|\d+\.)\s+(.*)$/);
+    if (li) {
+      const tag = /\d/.test(li[1]) ? 'ol' : 'ul';
+      closeTo(ind + 1);
+      const top = stack[stack.length - 1];
+      if (!top || top.ind < ind) { stack.push({ ind, tag }); out.push(`<${tag}><li>`); }
+      else out.push('</li><li>');
+      out.push(inline(li[2])); continue;
+    }
+    if (stack.length && ind > 0) { out.push(' ' + inline(t)); continue; }   // συνέχεια στοιχείου λίστας
+    closeTo(0);
+    out.push(`<p>${inline(t)}</p>`);
+  }
+  closeTo(0);
+  return out.join('');
+}
+async function openHelp() {
+  openModal(`<div class="ph"><h2>Βοήθεια</h2><button class="btn sm" onclick="closeModal()">✕</button></div><div class="mb md" id="helpBody">Φόρτωση…</div>`, 'help');
+  try {
+    const r = await fetch('/help.md', { cache: 'no-cache' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    $('helpBody').innerHTML = mdToHtml(await r.text());
+  } catch (e) {
+    $('helpBody').innerHTML = `<p class="bad">Δεν φορτώθηκε η βοήθεια (${esc(e.message)}). Ελέγξτε τη σύνδεση και δοκιμάστε ξανά.</p>`;
+  }
+}
 
 // --- Χρήστες (admin) ---
 async function openUsers() {
@@ -1814,7 +2266,7 @@ async function renderUsers() {
     <td>${u.role === 'admin' ? '<span class="note">όλα</span>' : `<div class="pchips">${PROJECTS.map(p => `<label><input type="checkbox" ${(u.projects || []).includes(p.id) ? 'checked' : ''} onchange="toggleUserProj('${esc(u.username)}','${esc(p.id)}',this.checked)">${esc(p.name)}</label>`).join('')}</div>`}</td>
     <td><input type="checkbox" ${u.active ? 'checked' : ''} onchange="patchUser('${esc(u.username)}',{active:this.checked})"></td>
     <td class="row"><button class="btn sm" onclick="resetPw('${esc(u.username)}')">Κωδικός</button>
-      <button class="btn danger sm" onclick="delUser('${esc(u.username)}')">✕</button></td></tr>`).join('') || '<tr><td colspan="5" class="note">Κανένας χρήστης</td></tr>'}
+      <button class="btn danger sm" onclick="delUser('${esc(u.username)}')">✕</button></td></tr>`).join('') || '<tr><td colspan="6" class="note">Κανένας χρήστης</td></tr>'}
   </table>`;
 }
 async function addUser() {
@@ -1824,8 +2276,10 @@ async function addUser() {
   } catch (e) { toast(e.message, 'err'); }
 }
 async function patchUser(u, body) {
-  try { await api('users/' + encodeURIComponent(u), { method: 'PATCH', body }); toast('Ενημερώθηκε', 'ok'); }
-  catch (e) { toast(e.message, 'err'); await renderUsers(); }
+  try {
+    await api('users/' + encodeURIComponent(u), { method: 'PATCH', body }); toast('Ενημερώθηκε', 'ok');
+    if ('role' in body) await renderUsers();         // ο ρόλος αλλάζει τη στήλη «Έργα» (διαχειριστής: όλα)
+  } catch (e) { toast(e.message, 'err'); await renderUsers(); }
 }
 let USERS_CACHE = [];
 async function toggleUserProj(u, pid, on) {
@@ -1835,6 +2289,8 @@ async function toggleUserProj(u, pid, on) {
   await patchUser(u, { projects: rec.projects });
 }
 async function resetPw(u) {
+  // ο δικός σας κωδικός αλλάζει με επιβεβαίωση του τρέχοντος (και η σύνδεση συνεχίζει με νέο token)
+  if (u === ME.username) { closeModal(); return openPassword(); }
   const pw = prompt(`Νέος κωδικός για τον χρήστη «${u}» (τουλάχιστον 6 χαρακτήρες):`);
   if (!pw) return; await patchUser(u, { password: pw });
 }
