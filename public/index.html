@@ -1607,12 +1607,18 @@ header .meta{text-align:right;font-size:9pt;color:#57606a}
 .bdg.p{border-color:#8250df;color:#8250df}.bdg.g{border-color:#1a7f37;color:#1a7f37}.bdg.r{border-color:#cf222e;color:#cf222e}.bdg.o{border-color:#9a6700;color:#9a6700}.bdg.b{border-color:#0969da;color:#0969da}
 h2{font-size:11.5pt;margin:16px 0 6px;padding-bottom:3px;border-bottom:1px solid #d0d7de;color:#0969da;break-after:avoid}
 section{break-inside:auto}
+/* σελιδοποίηση: επικεφαλίδα ποτέ μόνη στο κάτω μέρος της σελίδας: «κρατά» 30 mm από κάτω της,
+   οπότε αν δεν χωρά περιεχόμενο, πηγαίνει στην επόμενη σελίδα μαζί με αυτό */
+h2{break-inside:avoid}
+h2::after{content:"";display:block;height:30mm;margin-bottom:-30mm}
+.kv tr,.calc tr{break-inside:avoid}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:0 16px}
 table{width:100%;border-collapse:collapse}
 .kv th{text-align:left;font-weight:400;color:#57606a;width:42%;padding:3px 6px 3px 0;vertical-align:top;border-bottom:1px solid #eaeef2}
 .kv td{padding:3px 0;border-bottom:1px solid #eaeef2;vertical-align:top}
 .calc td{padding:3px 6px;border-bottom:1px solid #eaeef2}
 .calc td:last-child{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.calc tr.h{break-after:avoid}
 .calc tr.h td{text-align:left;color:#57606a;font-weight:400;font-size:8.5pt;text-transform:uppercase;padding-top:8px}
 .ok{color:#1a7f37}.bad{color:#cf222e}
 .note{font-size:8.5pt;color:#57606a;margin-top:4px}
@@ -1672,7 +1678,7 @@ ${P.pe_notes ? `<div style="margin-top:4px"><span class="note">Σημειώσε�
 </section>
 
 <section><h2>2. Θέση</h2>
-${kv([['WGS84 (φ, λ)', has ? `${lat.toFixed(6)}, ${lng.toFixed(6)}` : '—'], ["ΕΓΣΑ'87", egsa], ['Google Maps', has ? `<a href="https://www.google.com/maps?q=${lat},${lng}">maps.google.com/?q=${lat},${lng}</a>` : '—'], ['Κτηματολόγιο', has ? `<a href="${esc(ktimaUrl(P))}">maps.ktimatologio.gr (κεντραρισμένο)</a>` : '—'], ['Google Earth', has ? `<a href="${esc(earthUrl(P))}">3D όψη με πινέζα</a>` : '—']])}
+${kv([['WGS84 (φ, λ)', has ? `${lat.toFixed(6)}, ${lng.toFixed(6)}` : '—'], ["ΕΓΣΑ'87", egsa], ['Google Maps', has ? `<a href="https://www.google.com/maps?q=${lat},${lng}">maps.google.com/?q=${lat},${lng}</a>` : '—'], ['Κτηματολόγιο', has ? `<a href="${esc(ktimaUrl(P))}">maps.ktimatologio.gr (κεντραρισμένο)</a>` : '—'], ['Google Earth', has ? `<a href="${esc(earthUrl(P))}">πινέζα στο Google Earth</a>` : '—']])}
 ${has ? '<div id="rmap"></div>' : '<div class="empty">Δεν έχει οριστεί θέση στον χάρτη.</div>'}
 ${(P.markers || []).length ? `<div class="note" style="margin-top:8px">Σημεία στον χάρτη</div>
 <table class="list"><tr><th style="width:8mm"></th><th>Ετικέτα</th><th>WGS84 (φ, λ)</th><th style="width:28mm">Απόσταση από οικόπεδο</th></tr>
@@ -1706,7 +1712,7 @@ ${TASK_GROUPS.map(g => `<tr><td colspan="4" style="color:#57606a;font-size:9pt;p
 </section>
 
 <section><h2>7. Αναλυτικός τεχνικός έλεγχος</h2>
-<div class="note">Γ.3 Έλεγχος επάρκειας στοιχείων</div>
+<div class="note">Γ.3 Έλεγχος επάρκειας στοιχείων και εντοπισμός προβλημάτων</div>
 <table class="list"><tr><th>Θέμα</th><th style="width:26mm">Αποτέλεσμα</th><th>Σχόλιο</th></tr>
 ${CHECKS.map(([k, l]) => { const c = (P.checks || {})[k] || {}; const st = c.state === 'ok' ? '<span class="ok">✓ ΟΚ</span>' : c.state === 'problem' ? '<b class="bad">⚠ Πρόβλημα</b>' : c.state === 'na' ? 'Δ/Α' : '—';
   return `<tr><td>${esc(l)}</td><td>${st}</td><td>${esc(c.note || '')}</td></tr>`; }).join('')}
@@ -1796,11 +1802,11 @@ const TASK_GROUPS = [
     ['B1', 'Β.1', 'Προκαταρκτική ανάκτηση όρων δόμησης και υπολογισμός εκμετάλλευσης'],
     ['B2', 'Β.2', 'Προκαταρκτική έγκριση της θέσης από τον πελάτη']] },
   { part: 'B', code: 'Γ', title: 'Αναλυτικός τεχνικός έλεγχος', tasks: [
-    ['G1', 'Γ.1', 'Ισχύοντες όροι και περιορισμοί δόμησης, ακριβής υπολογισμός εκμετάλλευσης'],
-    ['G2', 'Γ.2', 'Κτηματολόγιο, Πράξη Εφαρμογής, ρυμοτομικό (επιτόπια επαλήθευση με GPS)'],
-    ['G3', 'Γ.3', 'Έλεγχος επάρκειας στοιχείων και εντοπισμός προβλημάτων'],
-    ['G4', 'Γ.4', 'Τεκμηρίωση κριτηρίων σύμβασης (αποστάσεις, πλάτος οδού)'],
-    ['G5', 'Γ.5', 'Καταγραφή τρόπου πρόσβασης (μετρό, τραμ, λεωφορεία)']] },
+    ['G1', 'Γ.1', 'Ανάκτηση των ισχυόντων όρων και περιορισμών δόμησης και ακριβής υπολογισμός της οικοδομικής εκμετάλλευσης'],
+    ['G2', 'Γ.2', 'Ανάκτηση στοιχείων Κτηματολογίου, Πράξης Εφαρμογής και εφαρμογής του ρυμοτομικού σχεδίου, με επιτόπια επαλήθευση των ορίων με γεωδαιτικό GPS'],
+    ['G3', 'Γ.3', 'Έλεγχος επάρκειας των στοιχείων και εντοπισμός προβλημάτων για την οικοδομική εκμετάλλευση'],
+    ['G4', 'Γ.4', 'Τεκμηρίωση των κριτηρίων της σύμβασης: αποστάσεις από το εμπορικό κέντρο και το θαλάσσιο μέτωπο, πλάτος οδού (κατά το ρυμοτομικό σχέδιο και επί τόπου)'],
+    ['G5', 'Γ.5', 'Καταγραφή του τρόπου πρόσβασης στη θέση: αποστάσεις από σταθμούς μετρό και τραμ, γραμμές λεωφορείων κ.λπ.']] },
   { part: 'B', code: 'Δ', title: 'Οικονομοτεχνική αξιολόγηση', tasks: [
     ['D1', 'Δ.1', 'Οικοδομική δραστηριότητα και τιμές πώλησης νέων κατοικιών'],
     ['D2', 'Δ.2', 'Οικονομοτεχνική ανάλυση του οικοπέδου']] },
@@ -1816,7 +1822,10 @@ const CHECKS = [
   ['c8', 'Δασικός χάρτης, αρχαιολογικές ζώνες, ζώνη αιγιαλού/παραλίας'],
   ['c9', 'Ρυμοτομικές απαλλοτριώσεις και προκήπια'],
   ['c10', 'Δουλείες και δίκτυα επί του οικοπέδου'],
-  ['c11', 'Ύπαρξη κτισμάτων, κατεδάφιση (και πιθανή υπαγωγή στον Ν.4495/17)'],
+  ['c11', 'Ύπαρξη κτισμάτων, ανάγκη και εκτίμηση κόστους κατεδάφισης (και πιθανή υπαγωγή στον Ν.4495/17)'],
+  ['c12', 'Ύπαρξη αποχετευτικού δικτύου'],
+  ['c13', 'Δυσκολία στις εκσκαφές (υπέδαφος, υδροφόρος ορίζοντας)'],
+  ['c14', 'Κλίσεις του οικοπέδου'],
 ];
 const CHECK_ST = [['', '—'], ['ok', '✓ ΟΚ'], ['problem', '⚠ Πρόβλημα'], ['na', 'Δ/Α']];
 // Κριτήρια βαθμολόγησης (Ε.1): [κλειδί, τίτλος, βάρος %]. Τα βάρη εδώ είναι οι προεπιλογές·
@@ -1934,7 +1943,7 @@ async function setPhase(ph) { CUR.phase = ph; applyPhaseRules(ph); markDirty(); 
 function tabTech(b) {
   b.innerHTML = `
   ${partBOpen(CUR) ? '' : '<div class="banner">Ο αναλυτικός τεχνικός έλεγχος ανήκει στο Τμήμα Β και γίνεται μετά την έγκριση του πελάτη.</div>'}
-  <fieldset><legend>Γ.3 Έλεγχος επάρκειας στοιχείων</legend>
+  <fieldset><legend>Γ.3 Έλεγχος επάρκειας στοιχείων και εντοπισμός προβλημάτων</legend>
     <div id="checkSum" style="margin-bottom:4px">${checkSumHtml(CUR)}</div>
     ${CHECKS.map(([k, label]) => {
       const c = (CUR.checks || {})[k] || {}, dis = isAdmin() ? '' : 'disabled';
