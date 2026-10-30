@@ -317,6 +317,7 @@ table.users th{color:var(--muted);font-weight:400;font-size:12px}
     <div class="legend">
       <span><i style="background:#a371f7"></i>Εγκρίθηκε / Τμήμα Β</span>
       <span><i style="background:#3fb950"></i>Κριτήρια ✓</span>
+      <span><i style="background:#f0883e"></i>Κριτήρια εκτός ορίων</span>
       <span><i style="background:#58a6ff"></i>Χωρίς έλεγχο</span>
       <span><i style="background:#d29922"></i>ΑΠΟΡΡΙΨΗ από χρήστη</span>
       <span><i style="background:#f85149"></i>Απορρίφθηκε (κριτήρια)</span>
@@ -780,12 +781,25 @@ function initMap() {
   // ο χάρακας ακυρώνει την «επιλογή θέσης από τον χάρτη», ώστε ένα κλικ να μη κάνει δύο πράγματα
   RULER = addRuler(map, document, { onStart: () => { if (PICK) { PICK = false; $('map').classList.remove('picking'); } } });
 }
+// Κατάσταση κριτηρίων σύμβασης: το τσεκ «πρώτος έλεγχος» σημαίνει ότι ο έλεγχος ΕΓΙΝΕ·
+// αν οι καταχωρημένες τιμές αποτυγχάνουν, δεν εμφανίζεται ως ✓ (χωρίς τιμές ισχύει η κρίση του διαχειριστή)
+function critStatus(p) {
+  if (p.crit_rejected) return 'rejected';
+  if (!p.crit_checked) return null;
+  return critEval(p).all === false ? 'fail' : 'ok';
+}
+const CRIT_BADGE = {
+  rejected: '<span class="bdg r">Απορρίφθηκε (κριτήρια)</span>',
+  fail: '<span class="bdg o" title="Ο έλεγχος έγινε, αλλά κάποια τιμή είναι εκτός των ορίων της σύμβασης">Κριτήρια ✗ εκτός ορίων</span>',
+  ok: '<span class="bdg g">Κριτήρια ✓</span>',
+};
 function plotColor(p) {
   if (p.crit_rejected || phaseOf(p) === 'rejected') return '#f85149';
   if (['B', 'done'].includes(phaseOf(p))) return '#a371f7';
   if (p.rejections && p.rejections.length) return '#d29922';
   if (p.approvals && p.approvals.length) return '#a371f7';
-  if (p.crit_checked) return '#3fb950';
+  if (critStatus(p) === 'fail') return '#f0883e';
+  if (critStatus(p) === 'ok') return '#3fb950';
   return '#58a6ff';
 }
 function renderMarkers() {
@@ -878,8 +892,7 @@ async function renderMapPage(reload) {
   fitAll();
 }
 function plotPopup(p) {
-  const st = phaseBadge(p) + (p.crit_rejected ? '<span class="bdg r">Απορρίφθηκε (κριτήρια)</span>'
-    : (p.crit_checked ? '<span class="bdg g">Κριτήρια ✓</span>' : '<span class="bdg">Χωρίς έλεγχο</span>'));
+  const st = phaseBadge(p) + (CRIT_BADGE[critStatus(p)] || '<span class="bdg">Χωρίς έλεγχο</span>');
   return `<b>${p.code ? esc(p.code) + ' · ' : ''}${esc(p.title || '')}</b><br>
     <span class="note">${esc([p.municipality, p.address].filter(Boolean).join(' — '))}</span><br>
     ${num(p.area) !== null ? fmt(num(p.area)) + ' m²' : ''}${num(p.price) !== null ? ' · ' + fmt(num(p.price), 0) + ' €' : ''}
@@ -887,25 +900,49 @@ function plotPopup(p) {
     <div class="row" style="gap:6px;flex-wrap:wrap"><button class="btn primary sm" onclick="openFromMap('${p.id}')">📁 Άνοιγμα φακέλου</button>
     <button class="btn sm" onclick="copyCoords('${p.id}')" title="Αντιγραφή συντεταγμένων για πρόγραμμα πλοήγησης">📋 Συντεταγμένες</button>
     <a class="btn sm" target="_blank" rel="noopener" href="${esc(earthUrl(p))}" title="Google Earth σε 3D">Earth 3D ↗</a>
-    <button class="btn sm" onclick="openKtimatologio('${p.id}')" title="Ανοίγει το maps.ktimatologio.gr κεντραρισμένο στο οικόπεδο${p.kaek ? ' (και αντιγράφει το ΚΑΕΚ)' : ''}">Κτηματολόγιο ↗</button></div>`;
+    <button class="btn sm" onclick="openKtimatologio('${p.id}')" title="Ανοίγει το maps.ktimatologio.gr κεντραρισμένο στο οικόπεδο${p.kaek ? ' (και αντιγράφει το ΚΑΕΚ)' : ''}">Κτηματολόγιο ↗</button>
+    <a class="btn sm" target="_blank" rel="noopener" href="${esc(teeUrl(p))}" title="Ενιαίος Ψηφιακός Χάρτης ΤΕΕ">Χάρτης ΤΕΕ ↗</a>
+    <button class="btn sm" onclick="openValuemaps('${p.id}')" title="valuemaps.gov.gr (αντιγράφει τις συντεταγμένες)">Αντικ. αξίες ↗</button>
+    <a class="btn sm" target="_blank" rel="noopener" href="${esc(floodsUrl(p))}" title="Χάρτες κινδύνου πλημμύρας ΥΠΕΝ">Πλημμύρες ↗</a></div>`;
 }
 // Αντιγραφή «πλάτος, μήκος» (WGS84, δεκαδικές μοίρες με τελεία): η μορφή που δέχονται
 // Google Maps, Waze, Apple Maps και τα περισσότερα GPS στην αναζήτηση
+// Συγχρονισμένη αντιγραφή: ολοκληρώνεται αμέσως, όσο η σελίδα έχει ακόμη το focus
+// (απαραίτητο όταν αμέσως μετά ανοίγει νέα καρτέλα). readOnly: χωρίς πληκτρολόγιο στο κινητό.
+function copySync(txt) {
+  const ta = document.createElement('textarea'); ta.value = txt; ta.readOnly = true;
+  ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
+  document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, txt.length);
+  let ok = false; try { ok = document.execCommand('copy'); } catch {}
+  ta.remove(); return ok;
+}
+// Πρώτα συγχρονισμένα· αν ο browser δεν το επιτρέπει, με το Clipboard API
+async function copyText(txt) {
+  if (copySync(txt)) return true;
+  try { await navigator.clipboard.writeText(txt); return true; } catch { return false; }
+}
+const plotById = (id) => (CUR && (!id || CUR.id === id)) ? CUR : PLOTS.find(x => x.id === id);
+const coordText = (p) => { const lat = num(p && p.lat), lng = num(p && p.lng); return lat === null || lng === null ? null : `${lat.toFixed(6)}, ${lng.toFixed(6)}`; };
 async function copyCoords(id) {
-  const p = (CUR && (!id || CUR.id === id)) ? CUR : PLOTS.find(x => x.id === id);
-  const lat = num(p && p.lat), lng = num(p && p.lng);
-  if (lat === null || lng === null) return toast('Δεν έχει οριστεί θέση', 'err');
-  const txt = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-  let ok = false;
-  try { await navigator.clipboard.writeText(txt); ok = true; }
-  catch {                                         // παλιότεροι browsers / χωρίς άδεια πρόχειρου
-    const ta = document.createElement('textarea'); ta.value = txt; ta.style.cssText = 'position:fixed;opacity:0';
-    document.body.appendChild(ta); ta.select();
-    try { ok = document.execCommand('copy'); } catch {}
-    ta.remove();
-  }
+  const txt = coordText(plotById(id));
+  if (!txt) return toast('Δεν έχει οριστεί θέση', 'err');
+  const ok = await copyText(txt);
   toast(ok ? `Αντιγράφηκαν: ${txt} — επικολλήστε τις στην αναζήτηση του προγράμματος πλοήγησης` : `Συντεταγμένες: ${txt}`, ok ? 'ok' : '');
 }
+
+// Αντικειμενικές αξίες (valuemaps.gov.gr, ΑΑΔΕ/ΓΓΠΣΔΔ): ο σύνδεσμος δεν δέχεται θέση,
+// γι' αυτό ανοίγει η εφαρμογή και αντιγράφονται οι συντεταγμένες για την αναζήτησή της
+const VALUEMAPS = 'https://www.valuemaps.gov.gr/';
+function openValuemaps(id) {
+  const txt = coordText(plotById(id));
+  const copy = txt ? copyText(txt) : Promise.resolve(false);   // ΠΡΙΝ ανοίξει η νέα καρτέλα (copySync όσο η σελίδα έχει το focus)
+  window.open(VALUEMAPS, '_blank', 'noopener');
+  copy.then((ok) => toast(ok ? `Αντιγράφηκαν οι συντεταγμένες ${txt}: Ctrl+V στην αναζήτηση του valuemaps.gov.gr` : (txt ? `Συντεταγμένες για αναζήτηση: ${txt}` : 'Το οικόπεδο δεν έχει θέση'), ok ? 'ok' : ''));
+}
+// Ενιαίος Ψηφιακός Χάρτης ΤΕΕ (χρήσεις γης, όροι δόμησης): δέχεται κέντρο «μήκος,πλάτος» και level
+const teeUrl = (p) => { const lat = num(p.lat), lng = num(p.lng); return lat === null || lng === null ? null : `https://sdigmap.tee.gov.gr/sdmquery/public/?center=${lng.toFixed(7)},${lat.toFixed(7)}&level=18`; };
+// Χάρτες κινδύνου πλημμύρας (ΥΠΕΝ): ο σύνδεσμος δέχεται κέντρο και zoom
+const floodsUrl = (p) => { const lat = num(p.lat), lng = num(p.lng); return lat === null || lng === null ? null : `https://gis.floods.ypeka.gr/?lon=${lng.toFixed(7)}&lat=${lat.toFixed(7)}&zoom=16`; };
 async function openFromMap(id) { setView('plots'); await openPlot(id); }
 
 // Εξαγωγή CSV στη μορφή εισαγωγής του mySimpleGIS (Πινέζες σε ΕΓΣΑ'87)
@@ -932,7 +969,7 @@ function exportMySimpleGIS() {
       p.kaek ? 'ΚΑΕΚ ' + p.kaek : '',
       p.ot ? 'Ο.Τ. ' + p.ot : '',
       p.pol_enotita ? 'Π.Ε. ' + p.pol_enotita : '',
-      p.crit_rejected ? 'Απορρίφθηκε (κριτήρια)' : (p.crit_checked ? 'Κριτήρια OK' : ''),
+      ({ rejected: 'Απορρίφθηκε (κριτήρια)', fail: 'Κριτήρια εκτός ορίων', ok: 'Κριτήρια OK' })[critStatus(p)] || '',
       p.rejections && p.rejections.length ? 'ΑΠΟΡΡΙΨΗ: ' + p.rejections.join('/') : '',
       p.units ? unitsLabel(p.units) : '',
       p.contact_name ? (p.contact_type === 'broker' ? 'Μεσίτης: ' : 'Ιδιοκτήτης: ') + p.contact_name + (p.contact_phone ? ' ' + p.contact_phone : '') : '',
@@ -969,13 +1006,13 @@ function openKtimatologio(id) {
   const p = (CUR && (!id || CUR.id === id)) ? CUR : PLOTS.find(x => x.id === id);
   if (!p) return;
   const kaek = p.kaek && String(p.kaek).trim(), centered = num(p.lat) !== null && num(p.lng) !== null;
-  // η αντιγραφή ξεκινά πριν ανοίξει η νέα καρτέλα, όσο η σελίδα έχει ακόμη το focus
-  const copy = kaek && navigator.clipboard ? navigator.clipboard.writeText(kaek) : Promise.reject();
+  // η αντιγραφή γίνεται ΠΡΙΝ ανοίξει η νέα καρτέλα, όσο η σελίδα έχει ακόμη το focus
+  const copy = kaek ? copyText(kaek) : Promise.resolve(false);
   window.open(ktimaUrl(p), '_blank', 'noopener');
   const where = centered ? 'Ο χάρτης ανοίγει κεντραρισμένος στο οικόπεδο.' : 'Το οικόπεδο δεν έχει θέση· ο χάρτης ανοίγει χωρίς κεντράρισμα.';
   if (!kaek) return toast(where, centered ? 'ok' : '');
-  copy.then(() => toast(`${where} Αντιγράφηκε το ΚΑΕΚ ${kaek}: Ctrl+V στην αναζήτηση για επιλογή του γεωτεμαχίου.`, 'ok'))
-      .catch(() => toast(`${where} ΚΑΕΚ για αναζήτηση: ${kaek}`));
+  copy.then((ok) => ok ? toast(`${where} Αντιγράφηκε το ΚΑΕΚ ${kaek}: Ctrl+V στην αναζήτηση για επιλογή του γεωτεμαχίου.`, 'ok')
+                       : toast(`${where} ΚΑΕΚ για αναζήτηση: ${kaek}`));
 }
 
 // Google Earth (web): σκέτη αναζήτηση συντεταγμένων → το Earth πετά εκεί και βάζει πινέζα.
@@ -1200,8 +1237,7 @@ async function loadPlots() {
 
 function plotBadges(p) {
   const b = [phaseBadge(p)];
-  if (p.crit_rejected) b.push('<span class="bdg r">Απορρίφθηκε (κριτήρια)</span>');
-  else if (p.crit_checked) b.push('<span class="bdg g">Κριτήρια ✓</span>');
+  if (critStatus(p)) b.push(CRIT_BADGE[critStatus(p)]);
   if (p.rejections && p.rejections.length) b.push(`<span class="bdg o" title="${esc(p.rejections.join(', '))}">ΑΠΟΡΡΙΨΗ ×${p.rejections.length}</span>`);
   if (p.approvals && p.approvals.length) b.push(`<span class="bdg p" title="${esc(p.approvals.join(', '))}">ΕΓΚΡΙΣΗ ×${p.approvals.length}</span>`);
   if (p.units) b.push(`<span class="bdg b">${esc(unitsLabel(p.units))}</span>`);
@@ -1438,6 +1474,9 @@ function tabInfo(b) {
     ${has ? `<a class="btn sm" target="_blank" rel="noopener" href="${esc(earthUrl(CUR))}" title="Google Earth σε 3D με πινέζα στο οικόπεδο">Google Earth 3D ↗</a>
       <button class="btn sm" onclick="exportPlotEarthKml()" title="KML με οικόπεδο και σημεία, σε λοξή 3D όψη, για Google Earth">⬇ Earth 3D + σημεία (KML)</button>` : ''}
     ${has || CUR.kaek ? `<button class="btn sm" onclick="openKtimatologio()" title="Ανοίγει το maps.ktimatologio.gr κεντραρισμένο στο οικόπεδο (και αντιγράφει το ΚΑΕΚ)">Κτηματολόγιο ↗</button>` : ''}
+    ${has ? `<a class="btn sm" target="_blank" rel="noopener" href="${esc(teeUrl(CUR))}" title="Ενιαίος Ψηφιακός Χάρτης ΤΕΕ (χρήσεις γης, όροι δόμησης), κεντραρισμένος στο οικόπεδο">Χάρτης ΤΕΕ ↗</a>
+      <button class="btn sm" onclick="openValuemaps()" title="Ανοίγει το valuemaps.gov.gr και αντιγράφει τις συντεταγμένες για αναζήτηση">Αντικειμενικές αξίες ↗</button>
+      <a class="btn sm" target="_blank" rel="noopener" href="${esc(floodsUrl(CUR))}" title="Χάρτες κινδύνου πλημμύρας ΥΠΕΝ, κεντραρισμένοι στο οικόπεδο">Πλημμύρες ↗</a>` : ''}
   </div>
   <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:8px"><span class="note">Σημεία στον χάρτη (ετικέτες: στάσεις, όρια, σημεία αναφοράς κ.λπ.)</span>
   ${poiListHtml()}</div>
@@ -1573,7 +1612,7 @@ function printReport() {
   const badges = [
     `<span class="bdg ${PH[2]}">Φάση: ${PH[1]}</span>`,
     apv.length ? `<span class="bdg p">ΕΓΚΡΙΣΗ από ${apv.length} χρήστη/ες</span>` : '',
-    P.crit_rejected ? '<span class="bdg r">Απορρίφθηκε από τα κριτήρια</span>' : (P.crit_checked ? '<span class="bdg g">Κριτήρια ✓</span>' : '<span class="bdg">Κριτήρια: χωρίς έλεγχο</span>'),
+    ({ rejected: '<span class="bdg r">Απορρίφθηκε από τα κριτήρια</span>', fail: '<span class="bdg o">Κριτήρια ✗ εκτός ορίων</span>', ok: '<span class="bdg g">Κριτήρια ✓</span>' })[critStatus(P)] || '<span class="bdg">Κριτήρια: χωρίς έλεγχο</span>',
     rej.length ? `<span class="bdg o">ΑΠΟΡΡΙΨΗ από ${rej.length} χρήστη/ες</span>` : '',
     P.units ? `<span class="bdg b">${esc(unitsLabel(P.units))}</span>` : '',
   ].join('');
@@ -1678,7 +1717,7 @@ ${P.pe_notes ? `<div style="margin-top:4px"><span class="note">Σημειώσε�
 </section>
 
 <section><h2>2. Θέση</h2>
-${kv([['WGS84 (φ, λ)', has ? `${lat.toFixed(6)}, ${lng.toFixed(6)}` : '—'], ["ΕΓΣΑ'87", egsa], ['Google Maps', has ? `<a href="https://www.google.com/maps?q=${lat},${lng}">maps.google.com/?q=${lat},${lng}</a>` : '—'], ['Κτηματολόγιο', has ? `<a href="${esc(ktimaUrl(P))}">maps.ktimatologio.gr (κεντραρισμένο)</a>` : '—'], ['Google Earth', has ? `<a href="${esc(earthUrl(P))}">πινέζα στο Google Earth</a>` : '—']])}
+${kv([['WGS84 (φ, λ)', has ? `${lat.toFixed(6)}, ${lng.toFixed(6)}` : '—'], ["ΕΓΣΑ'87", egsa], ['Google Maps', has ? `<a href="https://www.google.com/maps?q=${lat},${lng}">maps.google.com/?q=${lat},${lng}</a>` : '—'], ['Κτηματολόγιο', has ? `<a href="${esc(ktimaUrl(P))}">maps.ktimatologio.gr (κεντραρισμένο)</a>` : '—'], ['Google Earth', has ? `<a href="${esc(earthUrl(P))}">πινέζα στο Google Earth</a>` : '—'], ['Χάρτης ΤΕΕ (χρήσεις γης, όροι)', has ? `<a href="${esc(teeUrl(P))}">sdigmap.tee.gov.gr (κεντραρισμένο)</a>` : '—'], ['Κίνδυνος πλημμύρας', has ? `<a href="${esc(floodsUrl(P))}">gis.floods.ypeka.gr (κεντραρισμένο)</a>` : '—'], ['Αντικειμενικές αξίες', '<a href="https://www.valuemaps.gov.gr/">valuemaps.gov.gr</a>']])}
 ${has ? '<div id="rmap"></div>' : '<div class="empty">Δεν έχει οριστεί θέση στον χάρτη.</div>'}
 ${(P.markers || []).length ? `<div class="note" style="margin-top:8px">Σημεία στον χάρτη</div>
 <table class="list"><tr><th style="width:8mm"></th><th>Ετικέτα</th><th>WGS84 (φ, λ)</th><th style="width:28mm">Απόσταση από οικόπεδο</th></tr>
