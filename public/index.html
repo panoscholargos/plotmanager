@@ -968,8 +968,9 @@ function plotColor(p) {
 function renderMarkers() {
   markerLayer.clearLayers();
   const pts = [];
-  // σελίδα χάρτη: φίλτρο χάρτη · λίστα: ό,τι φαίνεται στη λίστα · ανοιχτός φάκελος: όλα (για μετάβαση)
-  for (const p of (VIEW === 'map' ? mapPlots() : (CUR ? PLOTS : filteredPlots()))) {
+  // σελίδα χάρτη: φίλτρο χάρτη · λίστα: ό,τι φαίνεται στη λίστα · ανοιχτός φάκελος: ΜΟΝΟ το οικόπεδο
+  // (όλα μαζί δείχνει ο γενικός χάρτης· στον φάκελο τα άλλα οικόπεδα θα μπέρδευαν)
+  for (const p of (VIEW === 'map' ? mapPlots() : (CUR ? PLOTS.filter(x => x.id === CUR.id) : filteredPlots()))) {
     const lat = num(p.lat), lng = num(p.lng);
     if (lat === null || lng === null) continue;
     const sel = CUR && CUR.id === p.id;
@@ -980,7 +981,7 @@ function renderMarkers() {
       if (RULER && RULER.active()) return;
       L.DomEvent.stopPropagation(e);
       if (PICK) onMapClick(e);                       // επιλογή θέσης: το κλικ μετρά ως κλικ στον χάρτη
-      else openPlot(p.id);
+      else if (!CUR || CUR.id !== p.id) openPlot(p.id);   // το ήδη ανοιχτό οικόπεδο δεν ξαναφορτώνεται (θα χάνονταν αλλαγές)
     });
     m.addTo(markerLayer); pts.push([lat, lng]);
   }
