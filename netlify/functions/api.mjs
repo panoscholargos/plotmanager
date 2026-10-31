@@ -10,7 +10,7 @@ const PLOT_FIELDS = [
   "code", "title", "address", "municipality", "area", "price", "kaek", "description", "dropbox",
   "lat", "lng",
   // Πολεοδομικά στοιχεία και κύρωση Πράξης Εφαρμογής
-  "ot", "pol_enotita", "pe_number", "pe_decision", "pe_date", "pe_registry", "pe_notes",
+  "ot", "pol_enotita", "ydom", "pe_number", "pe_decision", "pe_date", "pe_registry", "pe_notes",
   // Υπεύθυνος επικοινωνίας
   "contact_name", "contact_phone", "contact_email", "contact_type",
   // Πρώτος έλεγχος κριτηρίων

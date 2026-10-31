@@ -1138,7 +1138,7 @@ function exportKML() {
       ['Περιοχή', [p.municipality, p.address].filter(Boolean).join(' — ')],
       ['Εμβαδόν', num(p.area) !== null ? fmt(num(p.area)) + ' m²' : ''],
       ['Τιμή', num(p.price) !== null ? fmt(num(p.price), 0) + ' €' : ''],
-      ['ΚΑΕΚ', p.kaek], ['Ο.Τ.', p.ot], ['Πολεοδομική Ενότητα', p.pol_enotita],
+      ['ΚΑΕΚ', p.kaek], ['Ο.Τ.', p.ot], ['Πολεοδομική Ενότητα', p.pol_enotita], ['ΥΔΟΜ', p.ydom],
       ['Κριτήρια σύμβασης', e.all === null ? '' : (e.all ? 'ΝΑΙ' : 'ΟΧΙ') + (e.prelim ? ' (προκαταρκτικά)' : '')],
       [cap(BT().pl), p.units ? unitsLabel(p.units) : ''],
       ['Βαθμολογία', sc === null ? '' : fmt(sc, 2) + ' / 10' + (scorePartial(p) ? ` (μερική: ${scoreCount(p)}/${SCORE_CRITERIA.length})` : '')],
@@ -1148,7 +1148,7 @@ function exportKML() {
     // το «; » πριν το <br> κρατά τις γραμμές χωριστές και όταν κάποιο πρόγραμμα αφαιρεί τα HTML tags
     const desc = rows.map(([k, v]) => `<b>${x(k)}:</b> ${x(v)}; <br>`).join('');
     const data = { code: p.code, title: p.title, phase: phaseLabel(phaseOf(p)), area_m2: num(p.area), price_eur: num(p.price),
-      kaek: p.kaek, ot: p.ot, pol_enotita: p.pol_enotita, municipality: p.municipality, score: sc === null ? '' : +sc.toFixed(2) };
+      kaek: p.kaek, ot: p.ot, pol_enotita: p.pol_enotita, ydom: p.ydom, municipality: p.municipality, score: sc === null ? '' : +sc.toFixed(2) };
     return `
       <Placemark><name>${x([p.code, p.title].filter(Boolean).join(' '))}</name>
         <description>${cdata(desc)}</description><styleUrl>#s${plotColor(p).slice(1)}</styleUrl>
@@ -1178,6 +1178,7 @@ const CMP_COLS = [
   { h: 'Τίτλος', v: p => p.title || '', w: 28 },
   { h: 'Περιοχή', v: p => p.municipality || '', w: 18 },
   { h: 'Πολ. Ενότητα', v: p => p.pol_enotita || '', w: 14 },
+  { h: 'ΥΔΟΜ', v: p => p.ydom || '', w: 18 },
   { h: 'Ο.Τ.', v: p => p.ot || '', w: 8 },
   { h: 'ΚΑΕΚ', v: p => p.kaek || '', w: 15 },
   { h: 'Πράξη Εφαρμογής', v: p => [p.pe_number, p.pe_date ? fmtDate(p.pe_date) : ''].filter(Boolean).join(' / '), w: 18 },
@@ -1287,14 +1288,16 @@ function plotBadges(p) {
 // σύγκριση χωρίς τόνους/διαλυτικά και κεφαλαία, με ς = σ («παλληνη» βρίσκει «Παλλήνη»)
 const fold = (v) => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/ς/g, 'σ');
 function filteredPlots() {
-  const q = fold(SEARCH.trim());
+  // κάθε λέξη της αναζήτησης πρέπει να υπάρχει σε κάποιο πεδίο (π.χ. «υδομ παλλ» βρίσκει «ΥΔΟΜ Δήμου Παλλήνης»)
+  const words = fold(SEARCH).split(/\s+/).filter(Boolean);
   return PLOTS.filter(p => {
     const rejected = isRejected(p);
     if (FILTER === 'active' && rejected) return false;
     if (FILTER === 'rejected' && !rejected) return false;
     if (FILTER === 'B' && !['B', 'done'].includes(phaseOf(p))) return false;
-    if (!q) return true;
-    return [p.code, p.title, p.address, p.municipality, p.kaek, p.ot, p.pol_enotita, p.pe_number, p.contact_name].some(v => fold(v).includes(q));
+    if (!words.length) return true;
+    const hay = [p.code, p.title, p.address, p.municipality, p.kaek, p.ot, p.pol_enotita, p.ydom, p.pe_number, p.contact_name].map(fold).join(' | ');
+    return words.every(w => hay.includes(w));
   });
 }
 function renderList() {
@@ -1485,7 +1488,7 @@ function tabInfo(b) {
 
   <fieldset><legend>Πολεοδομικά στοιχεία</legend><div class="grid">
     ${F('Ο.Τ. (οικοδομικό τετράγωνο)', 'ot')}${F('Πολεοδομική Ενότητα', 'pol_enotita')}
-    ${F('ΚΑΕΚ', 'kaek', 'text', { full: true })}
+    ${F('ΚΑΕΚ', 'kaek')}${F('Αρμόδια ΥΔΟΜ', 'ydom')}
   </div>
   ${CUR.kaek ? `<div style="margin-top:6px"><button class="btn sm" onclick="openKtimatologio()">Άνοιγμα ΚΑΕΚ στο Κτηματολόγιο ↗</button></div>` : ''}
   <div id="kaekWarn" class="note bad ${kaekOk(CUR.kaek) ? 'hidden' : ''}" style="margin-top:4px">Το ΚΑΕΚ συνήθως έχει 12 ψηφία (π.χ. 050681203001), ή 12 ψηφία με /x/x για οριζόντιες ιδιοκτησίες.</div>
@@ -1756,7 +1759,7 @@ ${kv([['Εμβαδόν', n(P.area, 2, 'm²')], ['Τιμή', n(P.price, 0, '€')
 ${P.description ? `<div style="margin-top:6px"><span class="note">Περιγραφή</span>${pre(P.description)}</div>` : ''}
 <div class="note" style="margin-top:8px">Πολεοδομικά στοιχεία</div>
 <div class="two">
-${kv([['Ο.Τ.', v(P.ot)], ['Πολεοδομική Ενότητα', v(P.pol_enotita)], ['ΚΑΕΚ', v(P.kaek)]])}
+${kv([['Ο.Τ.', v(P.ot)], ['Πολεοδομική Ενότητα', v(P.pol_enotita)], ['ΚΑΕΚ', v(P.kaek)], ['Αρμόδια ΥΔΟΜ', v(P.ydom)]])}
 ${kv([['Πράξη Εφαρμογής', v(P.pe_number)], ['Απόφαση κύρωσης', v(P.pe_decision)], ['Ημερομηνία κύρωσης', P.pe_date ? fmtDate(P.pe_date) : '—'], ['Μεταγραφή / Κτηματολόγιο', v(P.pe_registry)]])}
 </div>
 ${P.pe_notes ? `<div style="margin-top:4px"><span class="note">Σημειώσεις Πράξης Εφαρμογής</span>${pre(P.pe_notes)}</div>` : ''}
@@ -2231,7 +2234,7 @@ const PLOT_FIELDS = ['code','title','address','municipality','area','price','kae
   'zone','sd','coverage','max_height','max_floors','frontage','min_area','min_frontage','units','terms_notes',
   'phase','dist_center','dist_sea','road_width_plan','road_width_site','access_metro','access_tram','access_bus','access_notes',
   'market_notes','new_sale_m2','build_cost_m2','other_costs','tasks','checks','scores','crit_dist_sea',
-  'ot','pol_enotita','pe_number','pe_decision','pe_date','pe_registry','pe_notes','project','markers'];
+  'ot','pol_enotita','ydom','pe_number','pe_decision','pe_date','pe_registry','pe_notes','project','markers'];
 let SAVING = false;
 async function savePlot(force) {
   if (SAVING || !CUR) return;
