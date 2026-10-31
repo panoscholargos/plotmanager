@@ -18,7 +18,7 @@ const PLOT_FIELDS = [
   // Όροι δόμησης
   "zone", "sd", "coverage", "max_height", "max_floors", "frontage", "min_area", "min_frontage",
   "units", "terms_notes",
-  // Φάση (Τμήμα Α → έγκριση → Τμήμα Β → ολοκλήρωση / απόρριψη)
+  // Φάση (Φάση Α → έγκριση → Φάση Β → ολοκλήρωση / απόρριψη)
   "phase",
   // Γ.4 Τεκμηρίωση κριτηρίων, Γ.5 Πρόσβαση
   "dist_center", "dist_sea", "road_width_plan", "road_width_site",
@@ -39,12 +39,18 @@ const ENUMS = {
   phase: PHASES,
   contact_type: ["owner", "broker"],
   zone: ["", "entos", "oikismos", "ektos", "other"],
-  units: ["", "0", "2", "3", "2-3"],
 };
 // Προεπιλεγμένα κριτήρια σύμβασης και βάρη βαθμολογίας για νέα έργα
-const DEF_CRITERIA = { center_km: 2, sea_km: 4, road_m: 8, house_min_m2: 170, house_max_m2: 220, net_ratio: 0.85 };
+const DEF_CRITERIA = { center_km: 2, sea_km: 4, road_m: 8, units_min: 2, units_max: 3, house_min_m2: 170, house_max_m2: 220, net_ratio: 0.85 };
 const DEF_WEIGHTS = { loc: 25, plan: 25, tech: 20, econ: 20, env: 10 };
+// Είδος κτιρίου του έργου (κατοικία, συνεργείο, ξενοδοχείο…): προσαρμόζει τα κείμενα της εφαρμογής
+const BUILDING_KEYS = ["katoikia", "synergeio", "xenodoxeio", "katastima", "grafeio", "apothiki", "viotexnia", "allo"];
 const MAX_FAILS = 8, LOCK_MS = 15 * 60 * 1000; // κλείδωμα σύνδεσης μετά από αποτυχίες
+// Κωδικοί: ελάχιστο μήκος για ΝΕΟΥΣ κωδικούς (οι υπάρχοντες συνεχίζουν να ισχύουν).
+// Ανώτατο όριο: το scrypt είναι σκόπιμα αργό, ένας τεράστιος «κωδικός» θα φόρτωνε τον διακομιστή.
+const PW_MIN = 8, PW_MAX = 200;
+const pwProblem = (pw) => pw.length < PW_MIN ? `Ο κωδικός θέλει τουλάχιστον ${PW_MIN} χαρακτήρες`
+  : pw.length > PW_MAX ? `Ο κωδικός μπορεί να έχει έως ${PW_MAX} χαρακτήρες` : null;
 class HttpError extends Error { constructor(msg, status = 400) { super(msg); this.status = status; } }
 const TASK_STATUS = ["", "progress", "done", "na"];
 const CHECK_STATE = ["", "ok", "problem", "na"];
@@ -123,6 +129,7 @@ const canSee = (me, pid) => me.role === "admin" || (!!pid && (me.projects || [])
 async function login(s, body) {
   const u = norm(body.username), pw = String(body.password || "");
   if (!u || !pw) return err("Συμπληρώστε όνομα χρήστη και κωδικό");
+  if (pw.length > PW_MAX) return err("Λάθος στοιχεία σύνδεσης", 401);   // χωρίς άσκοπο scrypt σε τεράστιο κείμενο
   const envU = norm(process.env.ADMIN_USER), envP = process.env.ADMIN_PASS;
   const isEnv = !!(envU && envP && u === envU);
   if (!isEnv && !validUsername(u)) return err("Λάθος στοιχεία σύνδεσης", 401);
@@ -176,6 +183,11 @@ function cleanPlot(body) {
       o[k] = n;
     } else if (BOOL_FIELDS.has(k)) {
       o[k] = !!v;
+    } else if (k === "units") {
+      const u = v == null ? "" : String(v);
+      const m = /^(|0|[1-9]\d?|([1-9]\d?)-([1-9]\d?))$/.exec(u);
+      if (!m || (m[2] && +m[2] >= +m[3])) throw new HttpError("Μη έγκυρη τιμή στη «Δυνατότητα» (αριθμός κτιρίων)");
+      o[k] = u;
     } else if (ENUMS[k]) {
       if (v == null) { if (ENUMS[k].includes("")) o[k] = ""; continue; }
       if (!ENUMS[k].includes(v)) throw new HttpError(`Μη έγκυρη τιμή στο πεδίο ${k}`);
@@ -242,6 +254,7 @@ function cleanPlot(body) {
 function forViewer(p, me) {
   if (me.role === "admin" || !p.tasks) return p;
   const tasks = {};
+  // eslint-disable-next-line no-unused-vars -- το hours αφαιρείται σκόπιμα
   for (const [k, t] of Object.entries(p.tasks)) { const { hours, ...rest } = t; tasks[k] = rest; }
   return { ...p, tasks };
 }
@@ -257,15 +270,28 @@ function cleanProject(b, base = {}) {
   if ("name" in b) { o.name = str(b.name, 120).trim(); if (!o.name) throw new HttpError("Το έργο θέλει όνομα"); }
   for (const k of ["client", "description"]) if (k in b) o[k] = str(b[k], 2000);
   if ("archived" in b) o.archived = !!b.archived;
+  if ("building" in b) {
+    const t = b.building && typeof b.building === "object" ? b.building : {};
+    if (!BUILDING_KEYS.includes(t.key)) throw new HttpError("Μη έγκυρο είδος κτιρίου");
+    if (t.key === "allo") {
+      const f = (v) => str(v, 40).trim();
+      o.building = { key: "allo", sg: f(t.sg), pl: f(t.pl), gpl: f(t.gpl) };
+      if (!o.building.sg || !o.building.pl || !o.building.gpl) throw new HttpError("Συμπληρώστε ενικό, πληθυντικό και γενική πληθυντικού για το είδος κτιρίου");
+    } else o.building = { key: t.key };
+  }
   if (b.criteria && typeof b.criteria === "object") {
     const c = { ...DEF_CRITERIA, ...(base.criteria || {}) };
     for (const k of Object.keys(DEF_CRITERIA)) if (k in b.criteria) {
-      const [lo, hi] = k === "net_ratio" ? [0.3, 1] : [0, 100000];
+      const count = k === "units_min" || k === "units_max";
+      const [lo, hi] = k === "net_ratio" ? [0.3, 1] : count ? [1, 20] : [0, 100000];
       const v = numOrNull(b.criteria[k], -Infinity, Infinity);
-      if (v === null || v < lo || v > hi) throw new HttpError(k === "net_ratio" ? "Ο λόγος καθαρού/μικτού πρέπει να είναι από 0,3 έως 1" : "Μη έγκυρη τιμή κριτηρίου έργου");
+      if (v === null || v < lo || v > hi || (count && !Number.isInteger(v)))
+        throw new HttpError(k === "net_ratio" ? "Ο λόγος καθαρού/μικτού πρέπει να είναι από 0,3 έως 1"
+          : count ? "Ο απαιτούμενος αριθμός κτιρίων είναι ακέραιος από 1 έως 20" : "Μη έγκυρη τιμή κριτηρίου έργου");
       c[k] = v;
     }
-    if (c.house_max_m2 < c.house_min_m2) throw new HttpError("Το μέγιστο εμβαδόν κατοικίας είναι μικρότερο από το ελάχιστο");
+    if (c.house_max_m2 < c.house_min_m2) throw new HttpError("Το μέγιστο εμβαδόν ανά κτίριο είναι μικρότερο από το ελάχιστο");
+    if (c.units_max < c.units_min) throw new HttpError("Ο απαιτούμενος αριθμός κτιρίων «έως» είναι μικρότερος από το «από»");
     o.criteria = c;
   }
   if (b.weights && typeof b.weights === "object") {
@@ -282,7 +308,7 @@ function cleanProject(b, base = {}) {
 }
 const newProject = (b, me) => ({
   id: crypto.randomUUID(), name: "Νέο έργο", client: "", description: "", archived: false,
-  criteria: { ...DEF_CRITERIA }, weights: { ...DEF_WEIGHTS },
+  criteria: { ...DEF_CRITERIA }, weights: { ...DEF_WEIGHTS }, building: { key: "katoikia" },
   ...b, created: now(), created_by: me ? me.username : "system",
 });
 const getProject = (s, id) => (validId(id) ? s.get("projects/" + id, { type: "json" }) : null);
@@ -292,8 +318,8 @@ let migrated = false;
 async function ensureMigrated(s) {
   if (migrated) return;
   if (await s.get("meta/v2", { type: "json" })) { migrated = true; return; }
-  const projects = await getAll(s, "projects/");
-  let def = projects.sort((a, b) => String(a.created).localeCompare(String(b.created)))[0];
+  const allProjects = await getAll(s, "projects/");
+  let def = allProjects.sort((a, b) => String(a.created).localeCompare(String(b.created)))[0];
   if (!def) {
     // σταθερό id: αν δύο αιτήματα κάνουν ταυτόχρονα μετάπτωση, γράφουν το ίδιο έργο και όχι δύο
     def = (await s.get("projects/default-project-0001", { type: "json" })) || { ...newProject({ name: "Έργο 1" }), id: "default-project-0001" };
@@ -362,7 +388,7 @@ async function users(s, me, req, parts, body) {
       const u = norm(body.username), pw = String(body.password || "");
       if (!validUsername(u)) return err("Όνομα χρήστη: 3–32 λατινικοί χαρακτήρες, αριθμοί, . _ -");
       if (u === norm(process.env.ADMIN_USER)) return err("Το όνομα χρησιμοποιείται από τον κύριο διαχειριστή");
-      if (pw.length < 6) return err("Ο κωδικός θέλει τουλάχιστον 6 χαρακτήρες");
+      if (pwProblem(pw)) return err(pwProblem(pw));
       if (await s.get("users/" + u, { type: "json" })) return err("Ο χρήστης υπάρχει ήδη");
       const rec = {
         username: u, name: str(body.name, 100) || u,
@@ -385,7 +411,7 @@ async function users(s, me, req, parts, body) {
     if ("active" in body) rec.active = !!body.active;
     if ("projects" in body) rec.projects = await cleanProjectIds(s, body.projects);
     if (body.password) {
-      if (String(body.password).length < 6) return err("Ο κωδικός θέλει τουλάχιστον 6 χαρακτήρες");
+      if (pwProblem(String(body.password))) return err(pwProblem(String(body.password)));
       Object.assign(rec, hashPw(String(body.password)));
     }
     await s.setJSON("users/" + target, rec);
@@ -400,6 +426,11 @@ async function users(s, me, req, parts, body) {
 }
 
 // ---------- οικόπεδα ----------
+// κάθε αλλαγή οικοπέδου ανεβάζει την έκδοση (rev): έτσι ανιχνεύεται η ταυτόχρονη επεξεργασία
+async function saveBumped(s, key, plot) {
+  plot.updated = now(); plot.rev = (plot.rev || 0) + 1;
+  await s.setJSON(key, plot);
+}
 // Μια παρατήρηση ανήκει στο έργο όπου γράφτηκε. Αν το οικόπεδο μεταφερθεί, οι παλιές παρατηρήσεις
 // δεν φαίνονται στους χρήστες του νέου έργου και οι αποφάσεις τους δεν μετρούν εκεί.
 const sameProject = (r, plot) => !r.project || r.project === plot.project;   // !r.project: παρατηρήσεις πριν τα έργα
@@ -412,9 +443,9 @@ async function listPlots(s, me, projectId) {
   const proj = await getProject(s, projectId);
   if (!proj || !canSee(me, proj.id)) return err("Το έργο δεν βρέθηκε", 404);
   const [all, reviews] = await Promise.all([getAll(s, "plots/"), getAll(s, "reviews/")]);
-  const plots = all.filter((p) => p.project === proj.id);
-  const ids = new Set(plots.map((p) => p.id));
-  const out = plots.map((p) => {
+  const inProject = all.filter((p) => p.project === proj.id);
+  const ids = new Set(inProject.map((p) => p.id));
+  const out = inProject.map((p) => {
     const rs = reviews.filter((r) => ids.has(r.plot_id) && r.plot_id === p.id && sameProject(r, p));
     const mine = rs.find((r) => r.username === me.username);
     const { events, links, ...rest } = p;
@@ -518,8 +549,7 @@ async function plots(s, me, req, parts, body) {
       else if (m === "DELETE") plot.events.splice(i, 1);
       else return err("Μη επιτρεπτή μέθοδος", 405);
     } else return err("Μη επιτρεπτή μέθοδος", 405);
-    plot.updated = now(); plot.rev = (plot.rev || 0) + 1;
-    await s.setJSON(key, plot);
+    await saveBumped(s, key, plot);
     return json({ events: plot.events, updated: plot.updated, rev: plot.rev });
   }
 
@@ -537,8 +567,7 @@ async function plots(s, me, req, parts, body) {
     } else if (lid && m === "DELETE") {
       plot.links = plot.links.filter((l) => l.id !== lid);
     } else return err("Μη επιτρεπτή μέθοδος", 405);
-    plot.updated = now(); plot.rev = (plot.rev || 0) + 1;
-    await s.setJSON(key, plot);
+    await saveBumped(s, key, plot);
     return json({ links: plot.links, updated: plot.updated, rev: plot.rev });
   }
 
@@ -570,7 +599,7 @@ export default async (req) => {
       if (me.env) return err("Ο κωδικός του κύριου διαχειριστή αλλάζει από τις ρυθμίσεις (ADMIN_PASS) του Netlify");
       const rec = await s.get("users/" + me.username, { type: "json" });
       if (!checkPw(String(body.old || ""), rec.salt, rec.hash)) return err("Λάθος τρέχων κωδικός", 401);
-      if (String(body.new || "").length < 6) return err("Ο νέος κωδικός θέλει τουλάχιστον 6 χαρακτήρες");
+      if (pwProblem(String(body.new || ""))) return err(pwProblem(String(body.new || "")));
       Object.assign(rec, hashPw(String(body.new)));
       await s.setJSON("users/" + me.username, rec);
       return json({ token: sign({ u: me.username, pv: pwVersion(rec), exp: Date.now() + TTL }) });
@@ -585,9 +614,9 @@ export default async (req) => {
     // Πλήρες αντίγραφο ασφαλείας σε JSON (χωρίς κωδικούς)
     if (parts[0] === "backup" && m === "GET") {
       if (me.role !== "admin") return err("Μόνο για διαχειριστή", 403);
-      const [projects, plots, reviews, users] = await Promise.all(["projects/", "plots/", "reviews/", "users/"].map((p) => getAll(s, p)));
+      const [bProjects, bPlots, bReviews, bUsers] = await Promise.all(["projects/", "plots/", "reviews/", "users/"].map((p) => getAll(s, p)));
       return json({ app: "PlotManager", version: 2, exported_at: now(), exported_by: me.username,
-        projects, plots, reviews, users: users.map(publicUser) });
+        projects: bProjects, plots: bPlots, reviews: bReviews, users: bUsers.map(publicUser) });
     }
 
     return err("Άγνωστο endpoint", 404);
