@@ -78,6 +78,8 @@ body{display:flex;flex-direction:column;height:100vh;height:100dvh}
 #map.picking{cursor:crosshair}
 .leaflet-container{background:#0b0f14}
 .leaflet-tooltip{background:var(--panel);color:var(--text);border:1px solid var(--border)}
+/* χωρίς πλαίσιο εστίασης γύρω από σχήματα του χάρτη (πολύγωνα, κύκλοι οικοπέδων) μετά από κλικ */
+path.leaflet-interactive:focus{outline:none}
 /* σημεία με ετικέτα */
 .poi-lbl{background:rgba(255,255,255,.94)!important;color:#1f2328!important;border:1px solid #8c959f!important;border-radius:3px;
   padding:0 6px!important;font-size:11.5px;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.35)!important;white-space:nowrap}
@@ -384,7 +386,7 @@ let DIRTY = false;
 let PICK = false;
 let VIEW = 'plots';
 let PROJECTS = [], PROJ = null;
-let map, markerLayer, tempMarker, poiLayer, RULER = null;
+let map, markerLayer, tempMarker, poiLayer, areaLayer, RULER = null;
 
 const isAdmin = () => ME && ME.role === 'admin';
 const $ = (id) => document.getElementById(id);
@@ -404,6 +406,8 @@ function parseNum(v, coord) {
 }
 // θέση οικοπέδου {lat, lng} ή null αν λείπει κάποια συντεταγμένη
 const posOf = (p) => { const lat = num(p && p.lat), lng = num(p && p.lng); return lat === null || lng === null ? null : { lat, lng }; };
+// αριθμός με ενικό/πληθυντικό: nOf(1,'οικόπεδο','οικόπεδα') → «1 οικόπεδο»
+const nOf = (n, sg, pl) => `${n} ${n === 1 ? sg : pl}`;
 const fmt = (n, d = 2) => n === null || n === undefined || !Number.isFinite(n) ? '—' : n.toLocaleString('el-GR', { minimumFractionDigits: 0, maximumFractionDigits: d });
 const fmtDate = (s) => {
   if (!s) return '';
@@ -461,6 +465,7 @@ function logout(expired) {
   if (markerLayer) markerLayer.clearLayers(); if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
   if (RULER) RULER.reset();
   if (poiLayer) poiLayer.clearLayers();
+  if (areaLayer) areaLayer.clearLayers();
   $('login').classList.remove('hidden');
   if (expired === true) $('lgErr').textContent = 'Η σύνδεση έληξε, συνδεθείτε ξανά.';
 }
@@ -506,6 +511,7 @@ const DEF_CRITERIA = { ...CFG.contract };
 const DEF_WEIGHTS = {};
 function applyProjectSettings() {
   const p = curProj();
+  drawAreas();
   Object.assign(CFG.contract, DEF_CRITERIA, (p && p.criteria) || {});
   if (!Object.keys(DEF_WEIGHTS).length) for (const c of SCORE_CRITERIA) DEF_WEIGHTS[c[0]] = c[2];
   for (const c of SCORE_CRITERIA) c[2] = (p && p.weights && p.weights[c[0]] != null) ? p.weights[c[0]] : DEF_WEIGHTS[c[0]];
@@ -546,7 +552,7 @@ async function downloadBackup() {
   try {
     const data = await api('backup');
     downloadBlob(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' }), 'plotmanager_backup_' + todayLocal() + '.json');
-    toast(`Αντίγραφο: ${data.projects.length} έργα, ${data.plots.length} οικόπεδα, ${data.reviews.length} παρατηρήσεις`, 'ok');
+    toast(`Αντίγραφο: ${nOf(data.projects.length, 'έργο', 'έργα')}, ${nOf(data.plots.length, 'οικόπεδο', 'οικόπεδα')}, ${nOf(data.reviews.length, 'παρατήρηση', 'παρατηρήσεις')}`, 'ok');
   } catch (e) { toast(e.message, 'err'); }
 }
 async function addProject() {
@@ -582,10 +588,64 @@ function editProject(id) {
   <fieldset><legend>Βάρη βαθμολογίας (%)</legend><div class="grid">
     ${SCORE_CRITERIA.map(([k, l]) => n('w.' + k, w[k], l)).join('')}
   </div></fieldset>
+  <fieldset><legend>Πολύγωνα έργου</legend><div id="areaBox">${areaListHtml(p)}</div></fieldset>
   <div class="row" style="justify-content:space-between">
     <button class="btn danger sm" onclick="deleteProject('${esc(p.id)}')">Διαγραφή έργου</button>
     <button class="btn success" onclick="saveProject('${esc(p.id)}')">Αποθήκευση</button>
   </div>`;
+}
+// --- πολύγωνα έργου (ρυθμίσεις) ---
+function areaListHtml(p) {
+  const list = Array.isArray(p.areas) ? p.areas : [];
+  return `<div class="note" style="margin-bottom:6px">Περιοχές αναζήτησης, ζώνες κ.λπ. Φαίνονται με το χρώμα τους σε όλους τους χάρτες και στην Αναφορά.
+    Εισαγωγή από CSV του mySimpleGIS («Εξαγωγή σχημάτων»): Πολύγωνο, Ορθογώνιο, Κύκλος· οι πινέζες και οι γραμμές αγνοούνται.</div>
+  ${list.map(a => `<div class="poi-row u"><span class="poi-dot" style="background:transparent;border:2px solid ${esc(a.color)};border-radius:2px"></span>
+      <span>${esc(a.name || 'Πολύγωνο')}${a.info ? ` <span class="note">· ${esc(a.info)}</span>` : ''}</span>
+      <span class="note">${nOf(a.coords.length, 'κορυφή', 'κορυφές')}</span>
+      <button class="btn danger sm" onclick="delArea('${esc(p.id)}','${esc(a.id)}')" title="Αφαίρεση">✕</button></div>`).join('') || '<div class="note">Κανένα πολύγωνο</div>'}
+  <div class="row" style="margin-top:8px;gap:6px">
+    <label class="btn primary sm" style="cursor:pointer">📥 Εισαγωγή πολυγώνων<input type="file" accept=".csv,text/csv,text/plain" hidden onchange="importAreas('${esc(p.id)}', this)"></label>
+    ${list.length ? `<button class="btn danger sm" onclick="clearAreas('${esc(p.id)}')">Διαγραφή όλων</button>` : ''}
+  </div>`;
+}
+// Κάθε αλλαγή ξεκινά από τα ΤΡΕΧΟΝΤΑ πολύγωνα του διακομιστή (όχι από όσα φορτώθηκαν στη σύνδεση),
+// ώστε να μη σβηστούν σιωπηλά όσα πρόσθεσε στο μεταξύ άλλη συσκευή ή καρτέλα
+async function putAreas(id, change, msg) {
+  try {
+    const fresh = await api('projects/' + id);
+    const res = change(Array.isArray(fresh.areas) ? fresh.areas : []);
+    await api('projects/' + id, { method: 'PUT', body: { areas: res.areas } });
+    msg = typeof msg === 'function' ? msg(res) : msg;
+    await loadProjects(PROJ);                            // ξανασχεδιάζει τα πολύγωνα του τρέχοντος έργου
+    const p = PROJECTS.find(x => x.id === id); if (p && $('areaBox')) $('areaBox').innerHTML = areaListHtml(p);
+    toast(msg, 'ok');
+  } catch (e) { toast(e.message, 'err'); }
+}
+async function importAreas(id, input) {
+  const file = input.files && input.files[0]; input.value = '';
+  if (!file) return;
+  if (file.size > 5e6) return toast('Το αρχείο είναι πολύ μεγάλο (έως 5 MB)', 'err');
+  if (!window.proj4) return toast('Δεν φορτώθηκε η βιβλιοθήκη μετατροπής συντεταγμένων. Ανανεώστε τη σελίδα.', 'err');
+  let res;
+  try { res = parseAreasCsv(await file.text()); } catch (e) { return toast('Δεν διαβάστηκε το αρχείο: ' + e.message, 'err'); }
+  if (!res.areas.length) return toast('Δεν βρέθηκαν πολύγωνα στο αρχείο' + (res.skipped.length ? ` (αγνοήθηκαν: ${[...new Set(res.skipped)].join(', ')})` : ''), 'err');
+  const ign = res.skipped.length ? ` · αγνοήθηκαν ${res.skipped.length} άλλα σχήματα` : '';
+  // πολύγωνα με ίδιες ακριβώς κορυφές με υπάρχον (π.χ. ίδιο αρχείο δύο φορές) δεν ξαναμπαίνουν
+  const key = (a) => JSON.stringify(a.coords);
+  await putAreas(id, (cur) => {
+    const seen = new Set(cur.map(key)), add = res.areas.filter(a => !seen.has(key(a)) && seen.add(key(a)));
+    return { areas: [...cur, ...add], added: add.length, dup: res.areas.length - add.length };
+  }, (r) => (r.added ? `${r.added === 1 ? 'Προστέθηκε' : 'Προστέθηκαν'} ${nOf(r.added, 'πολύγωνο', 'πολύγωνα')}` : 'Κανένα νέο πολύγωνο') + (r.dup ? ` · ${r.dup} υπήρχαν ήδη` : '') + ign);
+}
+async function delArea(id, aid) {
+  const p = PROJECTS.find(x => x.id === id); if (!p) return;
+  const a = (p.areas || []).find(x => x.id === aid);
+  if (!confirm(`Αφαίρεση του πολυγώνου «${a ? a.name || 'Πολύγωνο' : ''}»;`)) return;
+  await putAreas(id, (cur) => ({ areas: cur.filter(x => x.id !== aid) }), 'Το πολύγωνο αφαιρέθηκε');
+}
+async function clearAreas(id) {
+  if (!confirm('Διαγραφή όλων των πολυγώνων του έργου;')) return;
+  await putAreas(id, () => ({ areas: [] }), 'Τα πολύγωνα διαγράφηκαν');
 }
 async function saveProject(id) {
   const bk = $('epBt').value;
@@ -814,13 +874,69 @@ function poiListHtml() {
     ${adm ? '<div class="row" style="margin-top:8px"><button class="btn primary sm" onclick="startPoiPick()">＋ Σημείο από τον χάρτη</button><span class="note">σύρετε ένα σημείο για να το μετακινήσετε</span></div>' : ''}`;
 }
 
+// ===================== ΠΟΛΥΓΩΝΑ ΕΡΓΟΥ =====================
+// Αποθηκεύονται στο έργο ({name, comment, info, color, coords:[[lat,lng],…]}) και φαίνονται σε όλους τους χάρτες
+const projAreas = () => { const p = curProj(); return (p && Array.isArray(p.areas)) ? p.areas : []; };
+// μόνο περίγραμμα, χωρίς γέμισμα: φαίνονται τα όρια και το υπόβαθρο μένει καθαρό
+const areaStyle = (c) => ({ color: c, weight: 2.5, opacity: .95, fill: false });
+function drawAreas() {
+  if (!areaLayer) return;
+  areaLayer.clearLayers();
+  for (const a of projAreas()) {
+    const pg = L.polygon(a.coords, { pane: 'areas', ...areaStyle(a.color) });
+    pg.bindTooltip(esc(a.name || 'Πολύγωνο') + (a.info ? ` <span style="opacity:.7">· ${esc(a.info)}</span>` : '') + (a.comment ? `<br><span style="opacity:.8">${esc(a.comment)}</span>` : ''), { sticky: true });
+    // επιλογή θέσης από τον χάρτη: το κλικ πάνω στο πολύγωνο μετρά ως κλικ στον χάρτη
+    pg.on('click', (e) => { if (RULER && RULER.active()) return; L.DomEvent.stopPropagation(e); if (PICK) onMapClick(e); });
+    pg.addTo(areaLayer);
+  }
+}
+// σημείο εντός πολυγώνου (ray casting· αρκετά ακριβές για οικόπεδα και περιοχές)
+function pointInArea(lat, lng, coords) {
+  let inside = false;
+  for (let i = 0, j = coords.length - 1; i < coords.length; j = i++) {
+    const [yi, xi] = coords[i], [yj, xj] = coords[j];
+    if ((yi > lat) !== (yj > lat) && lng < (xj - xi) * (lat - yi) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+// Ανάγνωση CSV του mySimpleGIS («Εξαγωγή σχημάτων»): Πολύγωνο / Ορθογώνιο / Κύκλος με κορυφές σε ΕΓΣΑ'87
+function csvRow(line) {                              // μία γραμμή CSV με εισαγωγικά ("" = ")
+  const out = []; let cur = '', q = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (q) { if (ch === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += ch; }
+    else if (ch === '"') q = true; else if (ch === ',') { out.push(cur); cur = ''; } else cur += ch;
+  }
+  out.push(cur); return out;
+}
+function parseAreasCsv(text) {
+  const areas = [], skipped = [];
+  for (const raw of text.replace(/^\ufeff/, '').split(/\r?\n/)) {
+    const line = raw.trim(); if (!line || line.startsWith('"===') || line.startsWith('"Για ') || line.startsWith('Σχήμα,')) continue;
+    const f = csvRow(line), shape = (f[0] || '').trim();
+    if (!/^(Πολύγωνο|Ορθογώνιο|Κύκλος)$/i.test(shape)) { if (shape) skipped.push(shape); continue; }
+    const pts = String(f[f.length - 1] || '').trim().split(/\s+/).map(t => t.split(',').map(Number)).filter(xy => xy.length === 2 && xy.every(Number.isFinite));
+    let coords = pts.map(([x, y]) => {
+      if (Math.abs(x) <= 180 && Math.abs(y) <= 90) return [y, x];               // ήδη WGS84 (μήκος, πλάτος)
+      const [lng, lat] = proj4('EPSG:2100', 'EPSG:4326', [x, y]); return [lat, lng];  // ΕΓΣΑ'87 → WGS84
+    }).map(([la, ln]) => [+la.toFixed(7), +ln.toFixed(7)]);
+    if (coords.length > 1 && coords[0][0] === coords[coords.length - 1][0] && coords[0][1] === coords[coords.length - 1][1]) coords = coords.slice(0, -1);  // κλειστό: η τελευταία = η πρώτη
+    if (coords.length < 3) { skipped.push(shape + ' (λιγότερες από 3 κορυφές)'); continue; }
+    areas.push({ name: (f[1] || '').trim(), comment: (f[2] || '').trim(), color: (f[3] || '').trim(), info: f.length > 5 ? (f[4] || '').trim() : '', coords });
+  }
+  return { areas, skipped };
+}
+
 // ===================== ΧΑΡΤΗΣ =====================
 function initMap() {
   map = L.map('map', { zoomControl: true, maxZoom: 20 }).setView(CFG.center, CFG.zoom);
   const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors' });
   const ktima = L.tileLayer.wms(CFG.ktimaWms, { layers: CFG.ktimaLayer, format: 'image/png', transparent: true, version: '1.1.1', crs: L.CRS.EPSG4326, maxZoom: 20, minZoom: 6, bounds: [[34.5, 19.0], [41.5, 28.5]], attribution: 'Κτηματολόγιο ©' });
   osm.addTo(map);
-  L.control.layers({ 'OpenStreetMap': osm, 'Κτηματολόγιο (ορθοφωτό)': ktima }, {}, { position: 'topright' }).addTo(map);
+  // πολύγωνα έργου: δικό τους επίπεδο κάτω από οικόπεδα και σημεία (overlayPane = 400)
+  map.createPane('areas').style.zIndex = 350;
+  areaLayer = L.layerGroup().addTo(map);
+  L.control.layers({ 'OpenStreetMap': osm, 'Κτηματολόγιο (ορθοφωτό)': ktima }, { 'Πολύγωνα έργου': areaLayer }, { position: 'topright' }).addTo(map);
   L.control.scale({ imperial: false }).addTo(map);
   markerLayer = L.layerGroup().addTo(map);
   poiLayer = L.layerGroup().addTo(map);
@@ -874,6 +990,7 @@ function fitAll() {
   const pts = renderMarkers();
   if (pts.length === 1) map.setView(pts[0], 16);
   else if (pts.length > 1) map.fitBounds(pts, { padding: [40, 40], maxZoom: 16 });
+  else if (projAreas().length) map.fitBounds(projAreas().flatMap(a => a.coords), { padding: [40, 40], maxZoom: 16 });
 }
 function startPick() {
   if (RULER && RULER.active()) RULER.reset();
@@ -1033,7 +1150,7 @@ function exportMySimpleGIS() {
   }
   // \ufeff (BOM): το Excel και το mySimpleGIS αναγνωρίζουν σωστά τα ελληνικά (UTF-8)
   downloadBlob(new Blob(['\ufeff' + lines.join('\r\n') + '\r\n'], { type: 'text/csv;charset=utf-8;' }), 'plotmanager_' + fileSlug() + todayLocal() + '.csv');
-  toast(`Εξήχθησαν ${list.length} οικόπεδα${nPoi ? ` και ${nPoi} σημεία` : ''}`, 'ok');
+  toast(`${list.length === 1 && !nPoi ? 'Εξήχθη' : 'Εξήχθησαν'} ${nOf(list.length, 'οικόπεδο', 'οικόπεδα')}${nPoi ? ` και ${nOf(nPoi, 'σημείο', 'σημεία')}` : ''}`, 'ok');
 }
 
 // Άνοιγμα maps.ktimatologio.gr κεντραρισμένου στο οικόπεδο.
@@ -1120,7 +1237,7 @@ function exportPlotEarthKml() {
   const GR = 'αάβγδεέζηήθιίϊΐκλμνξοόπρσςτυύϋΰφχψωώ', LT = ['a','a','v','g','d','e','e','z','i','i','th','i','i','i','i','k','l','m','n','x','o','o','p','r','s','s','t','y','y','y','y','f','ch','ps','o','o'];
   const slug = String(p.code || '').toLowerCase().split('').map(c => { const i = GR.indexOf(c); return i >= 0 ? LT[i] : c; }).join('').replace(/[^a-z0-9_-]+/g, '_').replace(/^_+|_+$/g, '');
   downloadKml(kml, 'plotmanager_3d_' + (slug || String(p.id).slice(0, 8)) + '.kml');
-  toast(`Κατέβηκε KML με το οικόπεδο${pois.length ? ` και ${pois.length} σημεία` : ''}${DIRTY ? ' (περιλαμβάνει μη αποθηκευμένες αλλαγές)' : ''}. Άνοιγμα: Google Earth Pro → File → Open, ή earth.google.com → Έργα → Νέο → Εισαγωγή αρχείου KML`, DIRTY ? '' : 'ok');
+  toast(`Κατέβηκε KML με το οικόπεδο${pois.length ? ` και ${nOf(pois.length, 'σημείο', 'σημεία')}` : ''}${DIRTY ? ' (περιλαμβάνει μη αποθηκευμένες αλλαγές)' : ''}. Άνοιγμα: Google Earth Pro → File → Open, ή earth.google.com → Έργα → Νέο → Εισαγωγή αρχείου KML`, DIRTY ? '' : 'ok');
 }
 
 // Εξαγωγή KML (Google Earth, QGIS, mySimpleGIS): ένα Placemark ανά οικόπεδο, φάκελοι ανά φάση, και τα σημεία του
@@ -1169,7 +1286,7 @@ function exportKML() {
 `;
   downloadKml(kml, 'plotmanager_' + fileSlug() + todayLocal() + '.kml');
   const nPoi = list.reduce((n, p) => n + plotPois(p).length, 0);
-  toast(`Εξήχθησαν ${list.length} οικόπεδα${nPoi ? ` και ${nPoi} σημεία` : ''} σε KML`, 'ok');
+  toast(`${list.length === 1 && !nPoi ? 'Εξήχθη' : 'Εξήχθησαν'} ${nOf(list.length, 'οικόπεδο', 'οικόπεδα')}${nPoi ? ` και ${nOf(nPoi, 'σημείο', 'σημεία')}` : ''} σε KML`, 'ok');
 }
 
 // ===================== ΣΥΓΚΡΙΤΙΚΟΣ ΠΙΝΑΚΑΣ (Ε.2) =====================
@@ -1260,7 +1377,7 @@ async function exportExcel() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Συγκριτικός Πίνακας');
     XLSX.writeFile(wb, 'plotmanager_' + fileSlug() + 'sygkritikos_' + todayLocal() + '.xlsx');
-    toast(`Εξήχθησαν ${rows.length} οικόπεδα`, 'ok');
+    toast(`${rows.length === 1 ? 'Εξήχθη' : 'Εξήχθησαν'} ${nOf(rows.length, 'οικόπεδο', 'οικόπεδα')}`, 'ok');
   } catch (e) { toast(e.message, 'err'); }
 }
 
@@ -1667,6 +1784,12 @@ function printReport() {
   ].join('');
   const evs = [...(P.events || [])].sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
   const photos = (P.links || []).filter(l => l.kind === 'photo'), docs = (P.links || []).filter(l => l.kind !== 'photo');
+  // πολύγωνα του έργου κοντά στο οικόπεδο (το πλαίσιό τους απέχει < ~5 km): στον χάρτη και στον πίνακα
+  const NEAR = 0.05;
+  const nearAreas = !has ? [] : projAreas().filter(a => {
+    const la = a.coords.map(c => c[0]), ln = a.coords.map(c => c[1]);
+    return Math.min(...la) - NEAR <= lat && lat <= Math.max(...la) + NEAR && Math.min(...ln) - NEAR <= lng && lng <= Math.max(...ln) + NEAR;
+  });
   const now = new Date().toLocaleString('el-GR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   const title = `Αναφορά ${P.code || ''} ${P.title || ''}`.trim();
   const ktimaOpts = JSON.stringify({ layers: CFG.ktimaLayer, format: 'image/png', transparent: true, version: '1.1.1', maxZoom: 20, minZoom: 6, bounds: [[34.5, 19.0], [41.5, 28.5]], attribution: 'Κτηματολόγιο ©' });
@@ -1768,6 +1891,9 @@ ${P.pe_notes ? `<div style="margin-top:4px"><span class="note">Σημειώσε�
 <section><h2>2. Θέση</h2>
 ${kv([['WGS84 (φ, λ)', has ? `${lat.toFixed(6)}, ${lng.toFixed(6)}` : '—'], ["ΕΓΣΑ'87", egsa], ['Google Maps', has ? `<a href="https://www.google.com/maps?q=${lat},${lng}">maps.google.com/?q=${lat},${lng}</a>` : '—'], ['Κτηματολόγιο', has ? `<a href="${esc(ktimaUrl(P))}">maps.ktimatologio.gr (κεντραρισμένο)</a>` : '—'], ['Google Earth', has ? `<a href="${esc(earthUrl(P))}">πινέζα στο Google Earth</a>` : '—'], ['Χάρτης ΤΕΕ (χρήσεις γης, όροι)', has ? `<a href="${esc(teeUrl(P))}">sdigmap.tee.gov.gr (κεντραρισμένο)</a>` : '—'], ['Κίνδυνος πλημμύρας', has ? `<a href="${esc(floodsUrl(P))}">gis.floods.ypeka.gr (κεντραρισμένο)</a>` : '—'], ['Αντικειμενικές αξίες', '<a href="https://www.valuemaps.gov.gr/">valuemaps.gov.gr</a>']])}
 ${has ? '<div id="rmap"></div>' : '<div class="empty">Δεν έχει οριστεί θέση στον χάρτη.</div>'}
+${nearAreas.length ? `<div class="note" style="margin-top:8px">Πολύγωνα έργου στην περιοχή</div>
+<table class="list"><tr><th style="width:8mm"></th><th>Πολύγωνο</th><th>Πληροφορία</th><th style="width:34mm">Θέση οικοπέδου</th></tr>
+${nearAreas.map(a => `<tr><td><span style="display:inline-block;width:12px;height:10px;border:2px solid ${esc(a.color)}"></span></td><td>${esc(a.name || 'Πολύγωνο')}${a.comment ? `<div class="note">${esc(a.comment)}</div>` : ''}</td><td>${esc(a.info || '')}</td><td>${pointInArea(lat, lng, a.coords) ? '<b class="ok">εντός</b>' : 'εκτός'}</td></tr>`).join('')}</table>` : ''}
 ${(P.markers || []).length ? `<div class="note" style="margin-top:8px">Σημεία στον χάρτη</div>
 <table class="list"><tr><th style="width:8mm"></th><th>Ετικέτα</th><th>WGS84 (φ, λ)</th><th style="width:28mm">Απόσταση από οικόπεδο</th></tr>
 ${P.markers.map(mk => `<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${esc(mk.color)};border:1px solid #0d1117"></span></td><td>${esc(mk.label || '—')}</td><td>${mk.lat.toFixed(6)}, ${mk.lng.toFixed(6)}</td><td>${poiDist(mk) || '—'}</td></tr>`).join('')}</table>` : ''}
@@ -1850,6 +1976,8 @@ ${REVS.length ? REVS.map(r => `<div class="rev ${r.rejected ? 'rj' : ''}"><div c
 var osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors' }).addTo(m);
 var ko = ${ktimaOpts}; ko.crs = L.CRS.EPSG4326;
 var kt = L.tileLayer.wms(${JSON.stringify(CFG.ktimaWms)}, ko);
+var areas = ${JSON.stringify(nearAreas.map(a => ({ c: a.coords, k: a.color })))};
+areas.forEach(function (a) { L.polygon(a.c, { color: a.k, weight: 2.5, opacity: .95, fill: false, interactive: false }).addTo(m); });
 L.circleMarker([${lat}, ${lng}], { radius: 9, color: '#cf222e', weight: 3, fillColor: '#cf222e', fillOpacity: .25 }).addTo(m);
 var pois = ${JSON.stringify((P.markers || []).map(mk => ({ lat: mk.lat, lng: mk.lng, label: esc(mk.label || '—'), html: poiSvg(mk.color) })))};
 pois.forEach(function (p) {

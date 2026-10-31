@@ -43,6 +43,32 @@ const ENUMS = {
 // Προεπιλεγμένα κριτήρια σύμβασης και βάρη βαθμολογίας για νέα έργα
 const DEF_CRITERIA = { center_km: 2, sea_km: 4, road_m: 8, units_min: 2, units_max: 3, house_min_m2: 170, house_max_m2: 220, net_ratio: 0.85 };
 const DEF_WEIGHTS = { loc: 25, plan: 25, tech: 20, econ: 20, env: 10 };
+// Πολύγωνα του έργου (π.χ. περιοχές αναζήτησης, ζώνες), εισαγωγή από CSV του mySimpleGIS.
+// Όρια: ώστε το έργο (που φορτώνεται σε κάθε σύνδεση) να μένει μικρό.
+const MAX_AREAS = 200, MAX_AREA_POINTS = 20000;
+function cleanAreas(list) {
+  if (!Array.isArray(list)) throw new HttpError("Μη έγκυρη λίστα πολυγώνων");
+  if (list.length > MAX_AREAS) throw new HttpError(`Έως ${MAX_AREAS} πολύγωνα ανά έργο`);
+  let total = 0;
+  return list.map((a) => {
+    if (!a || typeof a !== "object" || !Array.isArray(a.coords)) throw new HttpError("Μη έγκυρο πολύγωνο");
+    if (a.coords.length < 3) throw new HttpError("Ένα πολύγωνο θέλει τουλάχιστον 3 κορυφές");
+    total += a.coords.length;
+    if (total > MAX_AREA_POINTS) throw new HttpError(`Έως ${MAX_AREA_POINTS} κορυφές συνολικά στα πολύγωνα του έργου`);
+    const coords = a.coords.map((c) => {
+      const lat = Number(Array.isArray(c) ? c[0] : NaN), lng = Number(Array.isArray(c) ? c[1] : NaN);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180)
+        throw new HttpError("Μη έγκυρες συντεταγμένες πολυγώνου");
+      return [+lat.toFixed(7), +lng.toFixed(7)];
+    });
+    return {
+      id: /^[a-zA-Z0-9-]{4,40}$/.test(String(a.id || "")) ? a.id : crypto.randomUUID(),
+      name: str(a.name, 120), comment: str(a.comment, 1000), info: str(a.info, 120),
+      color: /^#[0-9a-fA-F]{6}$/.test(String(a.color || "")) ? a.color.toLowerCase() : "#ffcc00",
+      coords,
+    };
+  });
+}
 // Είδος κτιρίου του έργου (κατοικία, συνεργείο, ξενοδοχείο…): προσαρμόζει τα κείμενα της εφαρμογής
 const BUILDING_KEYS = ["katoikia", "synergeio", "xenodoxeio", "katastima", "grafeio", "apothiki", "viotexnia", "allo"];
 const MAX_FAILS = 8, LOCK_MS = 15 * 60 * 1000; // κλείδωμα σύνδεσης μετά από αποτυχίες
@@ -270,6 +296,7 @@ function cleanProject(b, base = {}) {
   if ("name" in b) { o.name = str(b.name, 120).trim(); if (!o.name) throw new HttpError("Το έργο θέλει όνομα"); }
   for (const k of ["client", "description"]) if (k in b) o[k] = str(b[k], 2000);
   if ("archived" in b) o.archived = !!b.archived;
+  if ("areas" in b) o.areas = cleanAreas(b.areas);
   if ("building" in b) {
     const t = b.building && typeof b.building === "object" ? b.building : {};
     if (!BUILDING_KEYS.includes(t.key)) throw new HttpError("Μη έγκυρο είδος κτιρίου");
