@@ -5,7 +5,7 @@
 // - Η βοήθεια (/help.md) φορτώνεται επίσης πρώτα από το δίκτυο, για να είναι πάντα η τρέχουσα.
 // - Τα υπόλοιπα στατικά και οι βιβλιοθήκες του cdnjs (σταθερές εκδόσεις) δίνονται από την cache
 //   και ενημερώνονται στο παρασκήνιο.
-const CACHE = 'plotmanager-v6';
+const CACHE = 'plotmanager-v7';
 const SHELL = ['/', '/manifest.webmanifest', '/favicon.svg', '/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', (e) => {
@@ -24,7 +24,7 @@ self.addEventListener('fetch', (e) => {
   if (req.mode === 'navigate') {                                                        // σελίδα: δίκτυο πρώτα
     // στην cache μόνο η αρχική σελίδα και μόνο επιτυχημένη απάντηση (όχι σελίδα σφάλματος 404/500)
     e.respondWith(fetch(req).then((r) => { if (r.ok && url.pathname === '/') { const c = r.clone(); caches.open(CACHE).then((x) => x.put('/', c)); } return r; })
-      .catch(() => caches.match('/')));
+      .catch(() => caches.match('/').then((hit) => hit || Response.error())));
     return;
   }
   if (url.origin === location.origin && url.pathname === '/help.md') {                // βοήθεια: δίκτυο πρώτα

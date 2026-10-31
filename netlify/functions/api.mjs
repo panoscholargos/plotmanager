@@ -1,6 +1,7 @@
 // PlotManager — API (Netlify Function v2 + Netlify Blobs)
 // Όλα τα endpoints κάτω από /api/*
 import { getStore } from "@netlify/blobs";
+import { snapshot, saveBackup, listBackups, backupStore, restoreRecords, fromV2, validBackupKey, checkIntegrity, BACKUP_FORMAT } from "../lib/backup.mjs";
 import crypto from "node:crypto";
 
 const TTL = 30 * 24 * 3600 * 1000; // διάρκεια σύνδεσης: 30 ημέρες
@@ -131,10 +132,11 @@ function hashPw(pw) {
   return { salt, hash: crypto.scryptSync(pw, salt, 64).toString("hex") };
 }
 function checkPw(pw, salt, hash) {
+  if (typeof salt !== "string" || typeof hash !== "string" || !hash) return false;   // λογαριασμός χωρίς κωδικό
   const h = crypto.scryptSync(String(pw), salt, 64), e = Buffer.from(hash, "hex");
   return h.length === e.length && crypto.timingSafeEqual(h, e);
 }
-const pwVersion = (rec) => rec.hash.slice(0, 12); // αλλάζει όταν αλλάζει ο κωδικός → άκυρα τα παλιά tokens
+const pwVersion = (rec) => String(rec.hash || "").slice(0, 12); // αλλάζει όταν αλλάζει ο κωδικός → άκυρα τα παλιά tokens
 // Για τον κύριο διαχειριστή: αλλαγή του ADMIN_PASS στο Netlify ακυρώνει όλες τις παλιές συνδέσεις του
 const envPwVersion = () => crypto.createHmac("sha256", secret()).update("env:" + (process.env.ADMIN_PASS || "")).digest("base64url").slice(0, 12);
 
@@ -146,7 +148,7 @@ async function authenticate(req, s) {
     return { username: p.u, name: process.env.ADMIN_NAME || "Διαχειριστής", role: "admin", env: true };
   }
   const rec = await s.get("users/" + p.u, { type: "json" });
-  if (!rec || !rec.active || p.pv !== pwVersion(rec)) return null;
+  if (!rec || !rec.active || !rec.hash || p.pv !== pwVersion(rec)) return null;
   return { username: rec.username, name: rec.name, role: rec.role, projects: Array.isArray(rec.projects) ? rec.projects : [] };
 }
 // Ο διαχειριστής βλέπει όλα τα έργα· ο χρήστης μόνο όσα του έχουν ανατεθεί
@@ -276,13 +278,30 @@ function cleanPlot(body) {
   return o;
 }
 
-// Οι ώρες εργασίας είναι μόνο για τον διαχειριστή
+// Στοιχεία της Φάσης Β (Γ.3–Γ.5, Δ, Ε.1 και οι εργασίες Γ/Δ): ο πελάτης τα βλέπει μόνο όταν το οικόπεδο
+// είναι σε Φάση Β ή ολοκληρώθηκε, όπως και στην Αναφορά
+const PART_B_FIELDS = ["checks", "scores", "dist_center", "dist_sea", "road_width_plan", "road_width_site",
+  "access_metro", "access_tram", "access_bus", "access_notes", "market_notes", "new_sale_m2", "build_cost_m2", "other_costs"];
+// Η Φάση Β «άνοιξε» όταν το οικόπεδο μπήκε σε Φάση Β (σημάδι b_opened, δεν σβήνει ποτέ). Έτσι, αν απορριφθεί
+// ΜΕΤΑ τον αναλυτικό έλεγχο, ο πελάτης συνεχίζει να βλέπει τα στοιχεία που τεκμηριώνουν την απόρριψη.
+// Για παλιά οικόπεδα χωρίς το σημάδι: η ολοκληρωμένη εργασία Β.2 (έγκριση πελάτη) σημαίνει το ίδιο.
+const B_PHASES = ["B", "done"];
+const partBOpen = (p) => B_PHASES.includes(p.phase) || !!p.b_opened || (p.phase === "rejected" && p.tasks?.B2?.status === "done");
+// Για τον χρήστη (πελάτη): χωρίς ώρες εργασίας και χωρίς στοιχεία Φάσης Β πριν την έγκριση.
+// (Ο χρήστης δεν αποθηκεύει οικόπεδα, άρα τα πεδία που λείπουν από την προβολή του δεν κινδυνεύουν να σβηστούν.)
 function forViewer(p, me) {
-  if (me.role === "admin" || !p.tasks) return p;
-  const tasks = {};
-  // eslint-disable-next-line no-unused-vars -- το hours αφαιρείται σκόπιμα
-  for (const [k, t] of Object.entries(p.tasks)) { const { hours, ...rest } = t; tasks[k] = rest; }
-  return { ...p, tasks };
+  if (me.role === "admin") return p;
+  const out = { ...p }, openB = partBOpen(p);
+  if (!openB) for (const k of PART_B_FIELDS) delete out[k];
+  if (p.tasks) {
+    out.tasks = {};
+    for (const [k, t] of Object.entries(p.tasks)) {
+      if (!openB && /^[GD]/.test(k)) continue;                       // εργασίες Γ.x / Δ.x
+      // eslint-disable-next-line no-unused-vars -- το hours αφαιρείται σκόπιμα
+      const { hours, ...rest } = t; out.tasks[k] = rest;
+    }
+  }
+  return out;
 }
 
 async function getAll(s, prefix) {
@@ -428,7 +447,7 @@ async function users(s, me, req, parts, body) {
     }
     return err("Μη επιτρεπτή μέθοδος", 405);
   }
-  const rec = await s.get("users/" + target, { type: "json" });
+  const rec = validUsername(target) ? await s.get("users/" + target, { type: "json" }) : null;
   if (!rec) return err("Ο χρήστης δεν βρέθηκε", 404);
   if (m === "PATCH") {
     if (target === me.username && ((body.role && body.role !== "admin") || body.active === false))
@@ -441,6 +460,7 @@ async function users(s, me, req, parts, body) {
       if (pwProblem(String(body.password))) return err(pwProblem(String(body.password)));
       Object.assign(rec, hashPw(String(body.password)));
     }
+    if (rec.active && !rec.hash) return err("Ο χρήστης δεν έχει κωδικό (π.χ. μετά από επαναφορά παλιού αντιγράφου). Ορίστε πρώτα νέο κωδικό.");
     await s.setJSON("users/" + target, rec);
     return json(publicUser(rec));
   }
@@ -503,6 +523,7 @@ async function plots(s, me, req, parts, body) {
         ...cleanPlot(body), project: body.project, events: [], links: [], rev: 1,
         created: now(), updated: now(), created_by: me.username,
       };
+      if (B_PHASES.includes(p.phase)) p.b_opened = true;
       await s.setJSON("plots/" + p.id, p);
       return json(p, 201);
     }
@@ -531,6 +552,7 @@ async function plots(s, me, req, parts, body) {
         merged.project = body.project;
       }
       if ((merged.lat == null) !== (merged.lng == null)) return err("Συμπληρώστε και τις δύο συντεταγμένες ή καμία");
+      if (B_PHASES.includes(merged.phase)) merged.b_opened = true;     // μένει και αν αλλάξει αργότερα η φάση
       Object.assign(plot, merged, { updated: now(), updated_by: me.username, rev: (plot.rev || 0) + 1 });
       await s.setJSON(key, plot);
       return json(plot);
@@ -625,6 +647,7 @@ export default async (req) => {
     if (parts[0] === "password" && m === "POST") {
       if (me.env) return err("Ο κωδικός του κύριου διαχειριστή αλλάζει από τις ρυθμίσεις (ADMIN_PASS) του Netlify");
       const rec = await s.get("users/" + me.username, { type: "json" });
+      if (!rec) return err("Απαιτείται σύνδεση", 401);
       if (!checkPw(String(body.old || ""), rec.salt, rec.hash)) return err("Λάθος τρέχων κωδικός", 401);
       if (pwProblem(String(body.new || ""))) return err(pwProblem(String(body.new || "")));
       Object.assign(rec, hashPw(String(body.new)));
@@ -638,17 +661,53 @@ export default async (req) => {
     }
     if (parts[0] === "plots") return await plots(s, me, req, parts, body);
 
-    // Πλήρες αντίγραφο ασφαλείας σε JSON (χωρίς κωδικούς)
-    if (parts[0] === "backup" && m === "GET") {
-      if (me.role !== "admin") return err("Μόνο για διαχειριστή", 403);
-      const [bProjects, bPlots, bReviews, bUsers] = await Promise.all(["projects/", "plots/", "reviews/", "users/"].map((p) => getAll(s, p)));
-      return json({ app: "PlotManager", version: 2, exported_at: now(), exported_by: me.username,
-        projects: bProjects, plots: bPlots, reviews: bReviews, users: bUsers.map(publicUser) });
+    // ---------- αντίγραφα ασφαλείας (μόνο διαχειριστής) ----------
+    if (["backup", "backups", "restore"].includes(parts[0]) && me.role !== "admin") return err("Μόνο για διαχειριστή", 403);
+    // πλήρες στιγμιότυπο για λήψη (όλα τα δεδομένα, με τα κλειδιά τους)
+    if (parts[0] === "backup" && m === "GET") return json(await snapshot(s, me.username));
+    if (parts[0] === "backups") {
+      const bs = backupStore();
+      if (m === "GET" && parts.length === 1) return json(await listBackups(bs));
+      if (m === "GET") {                                    // λήψη αποθηκευμένου αντιγράφου
+        const key = parts.slice(1).join("/");
+        if (!validBackupKey(key)) return err("Μη έγκυρο αντίγραφο");
+        const data = await bs.get(key, { type: "json" });
+        return data ? json(data) : err("Το αντίγραφο δεν βρέθηκε", 404);
+      }
+      if (m === "POST") {                                   // αποθήκευση τώρα (χειροκίνητο)
+        const data = await snapshot(s, me.username);
+        return json({ key: await saveBackup(bs, "manual", data), counts: data.counts, integrity: data.integrity });
+      }
+      return err("Μη επιτρεπτή μέθοδος", 405);
+    }
+    // επαναφορά από αποθηκευμένο αντίγραφο ({key}) ή από αρχείο ({data})
+    if (parts[0] === "restore" && m === "POST") {
+      const bs = backupStore();
+      let data = body.data;
+      if (body.key) {
+        if (!validBackupKey(body.key)) return err("Μη έγκυρο αντίγραφο");
+        data = await bs.get(body.key, { type: "json" });
+        if (!data) return err("Το αντίγραφο δεν βρέθηκε", 404);
+      }
+      if (!data || typeof data !== "object" || data.app !== "PlotManager") return err("Το αρχείο δεν είναι αντίγραφο ασφαλείας του PlotManager");
+      let records, inactive = [];
+      if (data.format === BACKUP_FORMAT && Array.isArray(data.records)) records = data.records;
+      else if (data.version === 2) ({ records, inactive } = await fromV2(data, s));
+      else return err("Άγνωστη μορφή αντιγράφου");
+      // πρώτα ο έλεγχος: ένα μη έγκυρο αρχείο απορρίπτεται ΠΡΙΝ γίνει οτιδήποτε (ούτε «πριν από επαναφορά»)
+      const { errors } = checkIntegrity(records);
+      if (errors.length) return err("Το αντίγραφο δεν είναι έγκυρο: " + errors.slice(0, 3).join(" · "));
+      // αντίγραφο της τρέχουσας κατάστασης, ώστε να αναιρείται και μια λάθος επαναφορά
+      const safety = await saveBackup(bs, "pre-restore", await snapshot(s, me.username));
+      const res = await restoreRecords(s, records);
+      migrated = false;
+      return json({ ...res, safety, inactive });
     }
 
     return err("Άγνωστο endpoint", 404);
   } catch (e) {
     if (e instanceof HttpError) return err(e.message, e.status);
+    if (e && e.expose) return err(e.message, e.status || 400);   // μηνύματα για τον χρήστη από τη βιβλιοθήκη αντιγράφων
     // απρόβλεπτο σφάλμα: λεπτομέρειες μόνο στο log του Netlify (Functions → api), όχι στον browser
     console.error(e);
     if (/AUTH_SECRET/.test(e.message || "")) return err(e.message, 500);   // ρύθμιση που λείπει: χρήσιμο μήνυμα
