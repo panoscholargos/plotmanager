@@ -1,0 +1,2704 @@
+<!doctype html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PlotManager</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="theme-color" content="#161b22">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PlotManager">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.11.0/proj4.js"></script>
+<style>
+:root{
+  --bg:#0d1117; --panel:#161b22; --panel2:#1c2128; --border:#30363d; --text:#c9d1d9; --muted:#8b949e;
+  --accent:#58a6ff; --green:#3fb950; --red:#f85149; --orange:#d29922; --purple:#a371f7; --input:#0d1117; --hover:#21262d;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans",sans-serif}
+a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+button,input,select,textarea{font:inherit;color:inherit}
+.hidden{display:none!important}
+
+/* ---------- κουμπιά (outline) ---------- */
+.btn{background:transparent;border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 12px;cursor:pointer;white-space:nowrap;transition:background .12s,border-color .12s}
+.btn:hover{background:var(--hover);border-color:#8b949e}
+.btn.primary{border-color:var(--accent);color:var(--accent)} .btn.primary:hover{background:rgba(88,166,255,.12)}
+.btn.success{border-color:var(--green);color:var(--green)} .btn.success:hover{background:rgba(63,185,80,.12)}
+.btn.danger{border-color:var(--red);color:var(--red)} .btn.danger:hover{background:rgba(248,81,73,.12)}
+.btn.sm{padding:2px 8px;font-size:12px}
+.btn:disabled{opacity:.5;cursor:default}
+
+/* ---------- topbar ---------- */
+#topbar{height:48px;display:flex;align-items:center;gap:10px;padding:0 12px;background:var(--panel);border-bottom:1px solid var(--border)}
+.logo{display:flex;align-items:center;gap:8px;font-weight:600;letter-spacing:.3px}
+.logo svg{width:24px;height:24px}
+.sep{width:1px;height:24px;background:var(--border)}
+.section-name{color:var(--muted)}
+#projSel{background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:4px 8px;max-width:260px;min-width:0;font-weight:600}
+.projbox{display:flex;align-items:center;gap:6px;min-width:0}
+.plist{display:grid;gap:6px}
+.pitem{display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:6px;padding:7px 10px;background:var(--panel2)}
+.pitem .nm{flex:1;min-width:0}
+.pchips{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px}
+.pchips label{display:flex;align-items:center;gap:4px;cursor:pointer;white-space:nowrap}
+.spacer{flex:1}
+.who{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:13px}
+.role{font-size:11px;border:1px solid var(--border);border-radius:10px;padding:0 7px}
+.role.admin{border-color:var(--accent);color:var(--accent)}
+#panelToggle{display:none}
+
+/* ---------- κύρια διάταξη ---------- */
+body{display:flex;flex-direction:column;height:100vh;height:100dvh}
+#topbar{flex:none}
+#main{display:flex;flex:1;min-height:0;position:relative}
+.nav{display:flex;gap:4px}
+.navbtn{background:none;border:1px solid transparent;color:var(--muted);border-radius:6px;padding:4px 10px;cursor:pointer}
+.navbtn:hover{color:var(--text);background:var(--hover)}
+.navbtn.on{color:var(--text);border-color:var(--border);background:var(--panel2)}
+.navbtn{white-space:nowrap} .navbtn .lbl-s{display:none}
+#topbar{min-width:0;overflow:hidden}
+#mapTools{position:absolute;top:10px;left:56px;z-index:500;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;width:250px;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+#mapTools .mt-title{font-weight:600;margin-bottom:2px}
+.legend{display:grid;gap:3px;margin:6px 0 10px;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;border:1px solid #0d1117;vertical-align:-1px}
+#mapTools .btn{width:100%}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--panel);color:var(--text);border:1px solid var(--border)}
+.leaflet-popup-content{margin:10px 12px;font-size:13px;line-height:1.5}
+.leaflet-container a.leaflet-popup-close-button{color:var(--muted)}
+#panel{width:480px;min-width:340px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+#map{flex:1;background:#0b0f14;position:relative;z-index:0}
+#map.picking{cursor:crosshair}
+.leaflet-container{background:#0b0f14}
+.leaflet-tooltip{background:var(--panel);color:var(--text);border:1px solid var(--border)}
+/* χωρίς πλαίσιο εστίασης γύρω από σχήματα του χάρτη (πολύγωνα, κύκλοι οικοπέδων) μετά από κλικ */
+path.leaflet-interactive:focus{outline:none}
+/* σημεία με ετικέτα */
+.poi-lbl{background:rgba(255,255,255,.94)!important;color:#1f2328!important;border:1px solid #8c959f!important;border-radius:3px;
+  padding:0 6px!important;font-size:11.5px;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.35)!important;white-space:nowrap}
+.poi-lbl:before{display:none}
+.poi-ico svg{display:block;filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.55))}
+.poi-list{display:grid;gap:6px;margin-top:8px}
+.poi-row{display:grid;grid-template-columns:12px 1fr 92px auto auto;gap:6px;align-items:center}
+.poi-row.u{grid-template-columns:12px 1fr auto auto}
+.poi-dot{width:12px;height:12px;border-radius:50%;border:1px solid #0d1117}
+.poi-row .note{white-space:nowrap}
+.leaflet-control-layers{background:var(--panel)!important;color:var(--text)!important;border:1px solid var(--border)!important}
+
+.ph{padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.ph h2{font-size:15px;margin:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pbody{flex:1;overflow:auto;padding:12px}
+.pfoot{border-top:1px solid var(--border);padding:8px 12px;display:flex;gap:8px;align-items:center;background:var(--panel2)}
+.dirty{color:var(--orange);font-size:12px}
+
+/* tabs */
+/* όλες οι καρτέλες ορατές: αναδίπλωση σε δεύτερη γραμμή αντί για κρυφή οριζόντια κύλιση */
+.tabs{display:flex;flex-wrap:wrap;border-bottom:1px solid var(--border)}
+.tab{padding:8px 11px;border:none;background:none;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;font-size:13px}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--text);border-bottom-color:var(--accent)}
+.tab .cnt{font-size:11px;background:var(--hover);border-radius:8px;padding:0 6px;margin-left:4px}
+
+/* λίστα φακέλων */
+.filters{display:flex;gap:6px;padding:8px 12px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.filters input{flex:1;min-width:140px}
+.chip{border:1px solid var(--border);border-radius:14px;padding:2px 10px;font-size:12px;cursor:pointer;background:none;color:var(--muted)}
+.chip.on{border-color:var(--accent);color:var(--accent)}
+.folder{display:flex;gap:10px;padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer;background:var(--panel2)}
+.folder:hover{border-color:#8b949e}
+.folder.sel{border-color:var(--accent)}
+.folder .ico{font-size:22px;line-height:1}
+.folder .t{font-weight:600}
+.folder .s{color:var(--muted);font-size:12px}
+.badges{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+.bdg{font-size:11px;border:1px solid var(--border);border-radius:10px;padding:0 7px;color:var(--muted)}
+.bdg.g{border-color:var(--green);color:var(--green)}
+.bdg.r{border-color:var(--red);color:var(--red)}
+.bdg.o{border-color:var(--orange);color:var(--orange)}
+.bdg.b{border-color:var(--accent);color:var(--accent)}
+.bdg.p{border-color:var(--purple);color:var(--purple)}
+/* εργασίες σύμβασης */
+.task{border-left:3px solid var(--border);background:var(--panel2);border-radius:0 6px 6px 0;padding:7px 9px;margin-bottom:6px}
+.task.st-progress{border-left-color:var(--orange)} .task.st-done{border-left-color:var(--green)} .task.st-na{opacity:.55}
+.task-h{font-size:13px;margin-bottom:4px} .task-h b{color:var(--accent);margin-right:4px}
+.task-f{display:grid;grid-template-columns:1fr 1fr 74px;gap:6px;margin-bottom:5px}
+.task-f.u{grid-template-columns:1fr 1fr}
+fieldset.locked{opacity:.6}
+.prog{display:grid;grid-template-columns:auto 1fr auto;gap:4px 10px;align-items:center;font-size:12px;margin-bottom:12px}
+.bar{height:6px;background:var(--hover);border-radius:3px;overflow:hidden} .bar i{display:block;height:100%;background:var(--green)}
+/* λίστα ελέγχου Γ.3 */
+.chkrow{display:grid;grid-template-columns:1fr 130px;gap:4px 8px;padding:6px 0;border-bottom:1px solid var(--border);align-items:center}
+.chkrow input,.chkrow .note{grid-column:1/-1}
+.chkrow.cs-problem .cl{color:var(--red)} .chkrow.cs-ok .cl{color:var(--green)} .chkrow.cs-na .cl{color:var(--muted)}
+.banner{border:1px solid var(--orange);color:var(--orange);border-radius:6px;padding:6px 10px;margin-bottom:10px;font-size:13px}
+.chk.purple input{accent-color:var(--purple)} .chk.purple span{color:var(--purple);font-weight:600}
+/* συγκριτικός πίνακας */
+#compare{flex:1;min-width:0;overflow:auto;padding:12px}
+.cmp-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.cmp-bar h2{font-size:16px;margin:0;margin-right:auto}
+table.cmp{border-collapse:collapse;font-size:12.5px;white-space:nowrap}
+table.cmp th{position:sticky;top:0;background:var(--panel);color:var(--muted);font-weight:400;text-align:left;padding:6px 8px;border-bottom:1px solid var(--border);z-index:1}
+table.cmp td{padding:6px 8px;border-bottom:1px solid var(--border)}
+table.cmp td.n{text-align:right;font-variant-numeric:tabular-nums}
+table.cmp td.warn{color:#d29922}
+table.cmp tr:hover td{background:var(--hover);cursor:pointer}
+table.cmp tr.rj td{opacity:.55}
+.empty{color:var(--muted);text-align:center;padding:30px 10px}
+
+/* φόρμες */
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px}
+.full{grid-column:1/-1}
+.fld{display:flex;flex-direction:column;gap:3px;min-width:0}
+.fld>span{font-size:12px;color:var(--muted)}
+input[type=text],input[type=password],input[type=date],input[type=url],input[type=tel],input[type=email],input:not([type]),select,textarea{
+  background:var(--input);border:1px solid var(--border);border-radius:6px;padding:6px 8px;width:100%;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+input.invalid{border-color:var(--red)!important}
+input:disabled,select:disabled,textarea:disabled{opacity:.85;color:var(--text);background:var(--panel2)}
+textarea{resize:vertical}
+.chk{display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer}
+.chk input{width:16px;height:16px;accent-color:var(--accent)}
+.chk.red input{accent-color:var(--red)} .chk.red span{color:var(--red);font-weight:600}
+.radios{display:flex;gap:16px;padding:6px 0}
+.radios label{display:flex;gap:6px;align-items:center;cursor:pointer}
+fieldset{border:1px solid var(--border);border-radius:8px;padding:10px;margin:0 0 12px}
+legend{color:var(--muted);font-size:12px;padding:0 6px;text-transform:uppercase;letter-spacing:.5px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+/* υπολογισμοί */
+.calc{width:100%;border-collapse:collapse;font-size:13px}
+.calc td{padding:5px 6px;border-bottom:1px solid var(--border)}
+.calc td:last-child{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.calc tr.h td{text-align:left;color:var(--muted);font-weight:400;font-size:12px;text-transform:uppercase}
+.note{font-size:12px;color:var(--muted)}
+.ok{color:var(--green)} .bad{color:var(--red)}
+
+/* ημερολόγιο */
+.ev{border-left:3px solid var(--accent);background:var(--panel2);border-radius:0 6px 6px 0;padding:8px 10px;margin-bottom:8px}
+.ev.done{border-left-color:var(--green);opacity:.8}
+.ev .d{font-size:12px;color:var(--muted)}
+.ev .t{font-weight:600}
+.ev .n{white-space:pre-wrap;margin-top:3px}
+
+/* αρχεία */
+.photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:12px}
+.ph-item{position:relative;border:1px solid var(--border);border-radius:6px;overflow:hidden;background:var(--panel2)}
+.ph-item img{width:100%;height:100px;object-fit:cover;display:block;cursor:pointer;background:#000}
+.ph-item .cap{font-size:12px;padding:4px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ph-item .x{position:absolute;top:4px;right:4px;background:rgba(13,17,23,.85)}
+.doc{display:flex;align-items:center;gap:8px;padding:7px 8px;border:1px solid var(--border);border-radius:6px;margin-bottom:6px;background:var(--panel2)}
+.doc a{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* παρατηρήσεις */
+.rev{border:1px solid var(--border);border-radius:6px;padding:8px 10px;margin-bottom:8px;background:var(--panel2)}
+.rev .hd{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--muted)}
+.rev .hd b{color:var(--text)}
+.rev .tx{white-space:pre-wrap;margin-top:4px}
+.ro{white-space:pre-wrap;background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:8px}
+
+/* login / modal / toast */
+#login{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);z-index:2000}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:22px;width:min(360px,92vw)}
+.card h1{font-size:18px;margin:0 0 4px;display:flex;align-items:center;gap:10px}
+.card .sub{color:var(--muted);margin-bottom:16px;font-size:13px}
+.card .fld{margin-bottom:10px}
+#modal{position:fixed;inset:0;background:rgba(1,4,9,.7);display:flex;align-items:center;justify-content:center;z-index:2100}  /* πάνω από τη φόρμα σύνδεσης (Βοήθεια) */
+#modalBox{background:var(--panel);border:1px solid var(--border);border-radius:10px;width:min(720px,94vw);max-height:88vh;display:flex;flex-direction:column}
+#modalBox .mb{padding:14px;overflow:auto}
+/* κουμπί και παράθυρο βοήθειας */
+.infoBtn{width:28px;height:28px;padding:0!important;border-radius:50%!important;background:#1f6feb!important;border-color:#388bfd!important;color:#fff!important;
+  font:italic 700 15px Georgia,'Times New Roman',serif!important;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
+.infoBtn:hover{background:#388bfd!important}
+#modalBox.help{width:min(900px,96vw)}
+.md{font-size:14px;line-height:1.6;color:var(--text)}
+.md h1{font-size:22px;margin:0 0 10px;border-bottom:1px solid var(--border);padding-bottom:8px}
+.md h2{font-size:17px;margin:22px 0 8px;border-bottom:1px solid var(--border);padding-bottom:5px;color:#58a6ff}
+.md h3{font-size:15px;margin:16px 0 6px}
+.md p{margin:8px 0}.md ul,.md ol{margin:6px 0;padding-left:22px}.md li{margin:3px 0}
+.md code{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:0 4px;font-size:12.5px}
+.md pre{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px;overflow:auto;font-size:12.5px;line-height:1.45}
+.md pre code{border:0;padding:0;background:none}
+.md table{border-collapse:collapse;margin:8px 0;font-size:13px}.md th,.md td{border:1px solid var(--border);padding:4px 8px;text-align:left}
+.md th{background:var(--bg)}.md a{color:#58a6ff}
+.md hr{border:0;border-top:1px solid var(--border);margin:20px 0 8px}
+table.users{width:100%;border-collapse:collapse;font-size:13px}
+table.users th,table.users td{text-align:left;padding:6px;border-bottom:1px solid var(--border)}
+table.users th{color:var(--muted);font-weight:400;font-size:12px}
+#toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 14px;z-index:3000;max-width:90vw}
+#toast.err{border-color:var(--red);color:var(--red)}
+#toast.ok{border-color:var(--green)}
+#lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:2500;display:flex;align-items:center;justify-content:center;cursor:zoom-out}
+#lightbox img{max-width:96vw;max-height:92vh}
+
+/* μεσαίες οθόνες (μικρό laptop, tablet οριζόντια, μισό παράθυρο): όλα τα κουμπιά να χωρούν στη γραμμή κορυφής */
+@media (max-width:1100px){
+  .navbtn .lbl-l{display:none} .navbtn .lbl-s{display:inline}
+  #topbar .lbl{display:none}
+  .who .nm{display:none}
+  #topbar{gap:8px}
+}
+@media (max-width:960px){ .logo-text{display:none} #projSel{max-width:180px} }
+@media (max-width:820px){
+  /* κινητό: δύο σειρές — 1) έργο + εικονίδια, 2) Λίστα / Χάρτης / Πίνακας σε όλο το πλάτος */
+  body.ruler-on #mapTools{display:none}
+  #topbar{gap:6px;padding:6px 8px;height:auto;flex-wrap:wrap;row-gap:6px}
+  #topbar .logo{display:none}
+  .projbox{flex:1;min-width:0} #projSel{max-width:none;width:100%;padding:5px 6px;font-size:14px}
+  #topbar .spacer{display:none}
+  .nav{order:10;flex:0 0 100%;display:flex;gap:4px}
+  .nav .navbtn{flex:1;text-align:center;border-color:var(--border);padding:5px 4px}
+  #topbar .sep,.who .role{display:none}
+  .navbtn .lbl-l{display:none} .navbtn .lbl-s{display:inline}
+  .nav{gap:2px;min-width:0}
+  .task-f{grid-template-columns:1fr 74px} .task-f select{grid-column:1/-1}
+  .task-f.u{grid-template-columns:1fr}
+  .poi-row{grid-template-columns:12px 1fr 80px auto auto}
+  #panelToggle{display:inline-block}
+  .who .nm,.logo-text,.lbl{display:none}
+  .navbtn{padding:4px 7px;font-size:13px}
+  #mapTools{left:auto;right:10px;top:auto;bottom:24px;width:220px}
+  #panel{position:absolute;top:0;bottom:0;left:0;width:100%;min-width:0;z-index:1000}
+  #panel.collapsed{display:none}
+  .grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div id="login">
+  <form class="card" onsubmit="doLogin(event)">
+    <h1><img src="/favicon.svg" width="34" height="34" alt="">PlotManager</h1>
+    <div class="sub">Επιλογή οικοπέδων για δόμηση</div>
+    <label class="fld"><span>Όνομα χρήστη</span><input type="text" id="lgUser" autocomplete="username" autocapitalize="none" required></label>
+    <label class="fld"><span>Κωδικός</span><input type="password" id="lgPass" autocomplete="current-password" required></label>
+    <label class="chk" style="margin-top:4px" title="Μόνο σε δικό σας υπολογιστή ή κινητό. Χωρίς αυτό, η σύνδεση ζητείται ξανά σε κάθε νέο άνοιγμα της εφαρμογής."><input type="checkbox" id="lgRemember"><span>Να με θυμάσαι σε αυτή τη συσκευή (30 ημέρες)</span></label>
+    <div class="row" style="justify-content:space-between;margin-top:6px">
+      <span id="lgErr" class="bad" style="font-size:13px"></span>
+      <button class="btn primary" id="lgBtn">Σύνδεση</button>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <button type="button" class="btn sm infoBtn" onclick="openHelp()" title="Βοήθεια" aria-label="Βοήθεια">i</button>
+      <button type="button" class="btn sm hidden installBtn" onclick="installApp()">⤓ Εγκατάσταση εφαρμογής</button>
+      <span id="iosHint" class="note hidden">Για εγκατάσταση στο iPhone/iPad: Κοινοποίηση <b>⬆</b> → «Προσθήκη στην οθόνη Αφετηρίας».</span>
+    </div>
+  </form>
+</div>
+
+<svg style="display:none"><symbol id="logoIcon" viewBox="0 0 24 24" fill="none" stroke="#58a6ff" stroke-width="1.6" stroke-linejoin="round">
+  <path d="M2 20h20"/><path d="M3 20l3-6h12l3 6" stroke-dasharray="2 1.5"/><path d="M8 14V9l4-3.5L16 9v5"/><path d="M11 14v-2.5h2V14"/>
+</symbol></svg>
+
+<!-- ============ APP ============ -->
+<div id="topbar">
+  <button class="btn sm" id="panelToggle" onclick="togglePanel()">☰</button>
+  <div class="logo"><img src="/favicon.svg" width="26" height="26" alt=""><span class="logo-text">PlotManager</span></div>
+  <div class="sep"></div>
+  <div class="projbox"><select id="projSel" title="Έργο" onchange="switchProject(this.value)"></select>
+    <button class="btn sm hidden" id="projBtn" onclick="openProjects()" title="Διαχείριση έργων">⚙<span class="lbl"> Έργα</span></button></div>
+  <div class="sep"></div>
+  <div class="nav">
+    <button class="navbtn on" data-v="plots" onclick="setView('plots')"><span class="lbl-l">Επιλογή Οικοπέδων</span><span class="lbl-s">Λίστα</span></button>
+    <button class="navbtn" data-v="map" onclick="setView('map')">Χάρτης</button>
+    <button class="navbtn" data-v="compare" onclick="setView('compare')"><span class="lbl-l">Συγκριτικός Πίνακας</span><span class="lbl-s">Πίνακας</span></button>
+  </div>
+  <div class="spacer"></div>
+  <button class="btn sm hidden" id="usersBtn" onclick="openUsers()" title="Χρήστες">👥<span class="lbl"> Χρήστες</span></button>
+  <div class="sep"></div>
+  <div class="who"><span class="nm" id="whoName"></span><span class="role" id="whoRole"></span></div>
+  <button class="btn sm hidden installBtn" onclick="installApp()" title="Εγκατάσταση εφαρμογής">⤓<span class="lbl"> Εγκατάσταση</span></button>
+  <button class="btn sm infoBtn" onclick="openHelp()" title="Βοήθεια" aria-label="Βοήθεια">i</button>
+  <button class="btn sm" onclick="openPassword()" title="Αλλαγή κωδικού">🔑</button>
+  <button class="btn sm" title="Έξοδος" onclick="if(!DIRTY||confirm('Υπάρχουν μη αποθηκευμένες αλλαγές. Έξοδος χωρίς αποθήκευση;'))logout()">⏻<span class="lbl"> Έξοδος</span></button>
+</div>
+
+<div id="main">
+  <div id="panel"></div>
+  <div id="map"></div>
+  <div id="mapTools" class="hidden">
+    <div class="mt-title">Χάρτης οικοπέδων</div>
+    <div class="note" id="mtCount"></div>
+    <label class="chk"><input type="checkbox" id="mtRej" checked onchange="renderMapPage(false)"><span>Με τα απορριφθέντα</span></label>
+    <div class="legend">
+      <span><i style="background:#a371f7"></i>Εγκρίθηκε / Φάση Β</span>
+      <span><i style="background:#3fb950"></i>Κριτήρια ✓</span>
+      <span><i style="background:#f0883e"></i>Κριτήρια εκτός ορίων</span>
+      <span><i style="background:#58a6ff"></i>Χωρίς έλεγχο</span>
+      <span><i style="background:#d29922"></i>ΑΠΟΡΡΙΨΗ από χρήστη</span>
+      <span><i style="background:#f85149"></i>Απορρίφθηκε (κριτήρια)</span>
+    </div>
+    <button class="btn primary" onclick="exportMySimpleGIS()">⬇ Export to mySimpleGIS</button>
+    <button class="btn" style="margin-top:6px" onclick="exportKML()">⬇ Export σε KML (Google Earth)</button>
+  </div>
+  <div id="compare" class="hidden"></div>
+</div>
+
+<div id="modal" class="hidden" onclick="if(event.target===this)closeModal()"><div id="modalBox"></div></div>
+<div id="lightbox" class="hidden" onclick="this.classList.add('hidden')"><img id="lbImg" alt=""></div>
+<div id="toast" class="hidden"></div>
+
+<script>
+// ===================== ΡΥΘΜΙΣΕΙΣ =====================
+const CFG = {
+  center: [37.97, 23.73], zoom: 10,
+  // WMS Κτηματολογίου (υπόβαθρο BASEMAP), ίδιο endpoint και layer με το mySimpleGIS
+  ktimaWms: 'https://gis.ktimanet.gr/wms/wmsopen/wmsserver.aspx?',
+  ktimaLayer: 'BASEMAP',
+  // Προεπιλεγμένα κριτήρια σύμβασης (Γ.4). Κάθε έργο μπορεί να έχει δικά του (⚙ Έργα → Ρυθμίσεις, applyProjectSettings)
+  // units_min/units_max: απαιτούμενος αριθμός κτιρίων· house_min_m2/house_max_m2: καθαρό εμβαδόν ανά κτίριο
+  contract: { center_km: 2, sea_km: 4, road_m: 8, units_min: 2, units_max: 3, house_min_m2: 170, house_max_m2: 220,
+    // λόγος καθαρού προς μικτό εμβαδόν μονάδας (τοίχοι, κλιμακοστάσιο, κοινόχρηστα)
+    net_ratio: 0.85 },
+};
+
+// ===================== ΕΙΔΟΣ ΚΤΙΡΙΟΥ (ανά έργο) =====================
+// Τα κείμενα «κατοικία / κατοικίες / κατοικιών» προσαρμόζονται στο είδος κτιρίου του έργου.
+// [κλειδί, ενικός, πληθυντικός, γενική πληθυντικού]
+const BUILDING_TYPES = [
+  ['katoikia', 'κατοικία', 'κατοικίες', 'κατοικιών'],
+  ['synergeio', 'συνεργείο', 'συνεργεία', 'συνεργείων'],
+  ['xenodoxeio', 'ξενοδοχείο', 'ξενοδοχεία', 'ξενοδοχείων'],
+  ['katastima', 'κατάστημα', 'καταστήματα', 'καταστημάτων'],
+  ['grafeio', 'γραφείο', 'γραφεία', 'γραφείων'],
+  ['apothiki', 'αποθήκη', 'αποθήκες', 'αποθηκών'],
+  ['viotexnia', 'βιοτεχνία', 'βιοτεχνίες', 'βιοτεχνιών'],
+  ['allo', 'άλλο (ορίζεται)', '', ''],
+];
+const cap = (t) => t ? t[0].toLocaleUpperCase('el-GR') + t.slice(1) : t;
+function btOf(proj) {
+  const b = (proj && proj.building) || {}, t = BUILDING_TYPES.find(x => x[0] === b.key) || BUILDING_TYPES[0];
+  if (t[0] === 'allo') return { key: 'allo', sg: b.sg || 'μονάδα', pl: b.pl || 'μονάδες', gpl: b.gpl || 'μονάδων' };
+  return { key: t[0], sg: t[1], pl: t[2], gpl: t[3] };
+}
+const BT = () => btOf(curProj());
+const nUnits = (n) => `${n} ${n === 1 ? BT().sg : BT().pl}`;                 // «1 κατοικία», «3 κατοικίες»
+const unitsReq = () => { const a = CFG.contract.units_min, b = CFG.contract.units_max; return a === b ? nUnits(a) : `${a}–${b} ${BT().pl}`; };
+// κείμενα με {sg} {pl} {gpl} (π.χ. τίτλοι εργασιών σύμβασης)
+const btText = (t) => { const b = BT(); return String(t).replace(/\{sg\}/g, b.sg).replace(/\{pl\}/g, b.pl).replace(/\{gpl\}/g, b.gpl); };
+
+// ===================== ΚΑΤΑΣΤΑΣΗ =====================
+// localStorage: σε ιδιωτική περιήγηση ή με μπλοκαρισμένα cookies μπορεί να «πετάξει» σφάλμα· η εφαρμογή δουλεύει και χωρίς
+const ls = {
+  get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
+  set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
+  del: (k) => { try { localStorage.removeItem(k); } catch {} },
+};
+// Σύνδεση: από προεπιλογή μόνο για αυτό το άνοιγμα (sessionStorage: σβήνει όταν κλείσει η καρτέλα/εφαρμογή,
+// οπότε σε κάθε νέο άνοιγμα ζητείται κωδικός). Με «Να με θυμάσαι» κρατιέται στη συσκευή (localStorage, 30 ημέρες).
+const ss = {
+  get: (k) => { try { return sessionStorage.getItem(k); } catch { return null; } },
+  set: (k, v) => { try { sessionStorage.setItem(k, v); } catch {} },
+  del: (k) => { try { sessionStorage.removeItem(k); } catch {} },
+};
+ls.del('pm_token');                                   // παλιό κλειδί (πάντα «θυμόταν»): όλοι συνδέονται μία φορά ξανά
+let REMEMBER = !!ls.get('pm_token_r');
+let TOKEN = ss.get('pm_token') || ls.get('pm_token_r') || '';
+function storeToken(t) {
+  ss.del('pm_token'); ls.del('pm_token_r');
+  if (t) { if (REMEMBER) ls.set('pm_token_r', t); else ss.set('pm_token', t); }
+}
+// Αποσύνδεση: σβήνεται ΜΟΝΟ το token αυτής της καρτέλας. Αν άλλη καρτέλα έχει ήδη αποθηκεύσει νεότερο
+// (π.χ. μετά από αλλαγή κωδικού), μένει, ώστε η συσκευή να συνεχίσει να «θυμάται» τη σύνδεση.
+function forgetToken(t) {
+  if (ss.get('pm_token') === t) ss.del('pm_token');
+  if (ls.get('pm_token_r') === t) ls.del('pm_token_r');
+}
+let ME = null;
+let PLOTS = [];
+let CUR = null;          // πλήρες τρέχον οικόπεδο
+let CUR_REVIEWS = [];
+let TAB = 'info';
+let FILTER = 'all';
+let SEARCH = '';
+let DIRTY = false;
+let PICK = false;
+let VIEW = 'plots';
+let PROJECTS = [], PROJ = null;
+let map, markerLayer, tempMarker, poiLayer, areaLayer, RULER = null;
+
+const isAdmin = () => ME && ME.role === 'admin';
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num = (v) => { if (v === null || v === undefined || v === '') return null; const n = Number(String(v).replace(',', '.')); return Number.isFinite(n) ? n : null; };
+// Ανάγνωση αριθμού που πληκτρολογεί ο χρήστης: δέχεται «285.000», «1.234,5», «7,5», «0.6».
+// Οι συντεταγμένες (coord) διαβάζονται πάντα με τελεία ή κόμμα ως υποδιαστολή.
+function parseNum(v, coord) {
+  let s = String(v ?? '').trim().replace(/\s/g, '');
+  if (s === '') return null;
+  if (!coord) {
+    if (/^-?[1-9]\d{0,2}(\.\d{3})+(,\d*)?$/.test(s)) s = s.replace(/\./g, '');      // 285.000 ή 1.234,5
+    else if (/^-?[1-9]\d{0,2}(,\d{3})+\.\d+$/.test(s)) s = s.replace(/,/g, '');   // 1,234.5 (αγγλική μορφή)
+  }
+  const n = Number(s.replace(',', '.'));
+  return Number.isFinite(n) ? n : NaN;
+}
+// θέση οικοπέδου {lat, lng} ή null αν λείπει κάποια συντεταγμένη
+const posOf = (p) => { const lat = num(p && p.lat), lng = num(p && p.lng); return lat === null || lng === null ? null : { lat, lng }; };
+// αριθμός με ενικό/πληθυντικό: nOf(1,'οικόπεδο','οικόπεδα') → «1 οικόπεδο»
+const nOf = (n, sg, pl) => `${n} ${n === 1 ? sg : pl}`;
+const fmt = (n, d = 2) => n === null || n === undefined || !Number.isFinite(n) ? '—' : n.toLocaleString('el-GR', { minimumFractionDigits: 0, maximumFractionDigits: d });
+const fmtDate = (s) => {
+  if (!s) return '';
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);           // ημερομηνία χωρίς ώρα: χωρίς μετατροπή ζώνης
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+  const d = new Date(s); return isNaN(d) ? s : d.toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+// Λήψη αρχείου που δημιουργήθηκε στη σελίδα (CSV, KML, JSON)
+function downloadBlob(blob, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+const todayLocal = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+// σύνδεσμοι από τα δεδομένα (Dropbox, αρχεία): μόνο http(s)· οτιδήποτε άλλο (π.χ. javascript:) γίνεται ανενεργό
+const safeUrl = (u) => { try { const x = new URL(String(u || '')); return /^https?:$/.test(x.protocol) ? x.href : '#'; } catch { return '#'; } };
+const kaekOk = (k) => !k || /^\d{12}(\/\d+\/\d+)?$/.test(String(k).trim());
+const fmtDT = (s) => { if (!s) return ''; const d = new Date(s); return isNaN(d) ? s : d.toLocaleString('el-GR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }); };
+
+function toast(msg, kind = '') {
+  const t = $('toast'); t.textContent = msg; t.className = kind; clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.add('hidden'), kind === 'err' ? 5000 : 2500);
+}
+
+async function api(path, opts = {}) {
+  let r;
+  try {
+    r = await fetch('/api/' + path, {
+      method: opts.method || 'GET',
+      headers: { 'content-type': 'application/json', ...(TOKEN ? { authorization: 'Bearer ' + TOKEN } : {}) },
+      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+    });
+  } catch { throw new Error('Δεν υπάρχει σύνδεση με τον διακομιστή. Ελέγξτε το διαδίκτυο και δοκιμάστε ξανά.'); }
+  let d = {}; try { d = await r.json(); } catch {}
+  if (r.status === 401 && path !== 'login' && path !== 'password') { logout(true); throw new Error(d.error || 'Απαιτείται σύνδεση'); }
+  if (!r.ok) { const e = new Error(d.error || ('Σφάλμα HTTP ' + r.status)); e.status = r.status; e.data = d; throw e; }
+  return d;
+}
+
+// ===================== ΣΥΝΔΕΣΗ =====================
+async function doLogin(e) {
+  e.preventDefault(); $('lgErr').textContent = ''; $('lgBtn').disabled = true;
+  try {
+    REMEMBER = $('lgRemember').checked;
+    const d = await api('login', { method: 'POST', body: { username: $('lgUser').value, password: $('lgPass').value, remember: REMEMBER } });
+    TOKEN = d.token; storeToken(TOKEN); ME = d.user; $('lgPass').value = ''; $('lgRemember').checked = false;
+    await startApp();
+  } catch (err) { $('lgErr').textContent = err.message; }
+  finally { $('lgBtn').disabled = false; }
+}
+function logout(expired) {
+  forgetToken(TOKEN);
+  TOKEN = ''; ME = null; CUR = null; CUR_REVIEWS = []; TAB = 'info'; DIRTY = false; if (VIEW !== 'plots') setView('plots', true); SEARCH = ''; FILTER = 'all'; PROJECTS = []; PROJ = null; PLOTS = []; closeModal();
+  // καθαρίζουμε ό,τι έδειχνε ο προηγούμενος χρήστης (να μη μένει στη σελίδα πίσω από τη φόρμα σύνδεσης)
+  $('panel').innerHTML = ''; $('compare').innerHTML = ''; $('projSel').innerHTML = '';
+  PICK = false; $('map').classList.remove('picking'); OPEN_SEQ++; SAVING = false; USERS_CACHE = [];   // εκκρεμή ανοίγματα οικοπέδου αγνοούνται
+  if (map) map.closePopup();
+  if (markerLayer) markerLayer.clearLayers(); if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
+  if (RULER) RULER.reset();
+  if (poiLayer) poiLayer.clearLayers();
+  if (areaLayer) areaLayer.clearLayers();
+  $('login').classList.remove('hidden');
+  if (expired === true) $('lgErr').textContent = 'Η σύνδεση έληξε, συνδεθείτε ξανά.';
+}
+async function boot() {
+  initMap();
+  if (!TOKEN) return;
+  try { ME = await api('me'); await startApp(); }
+  catch (e) { if (TOKEN) $('lgErr').textContent = 'Δεν ήταν δυνατή η επικοινωνία με τον διακομιστή. Ανανεώστε τη σελίδα ή συνδεθείτε ξανά.'; }
+}
+async function startApp() {
+  $('whoName').textContent = ME.name || ME.username;
+  $('whoRole').textContent = isAdmin() ? 'admin' : 'χρήστης';
+  $('whoRole').className = 'role' + (isAdmin() ? ' admin' : '');
+  $('usersBtn').classList.toggle('hidden', !isAdmin());
+  $('projBtn').classList.toggle('hidden', !isAdmin());
+  await loadProjects();
+  await loadPlots();
+  $('login').classList.add('hidden');      // μόνο αφού φορτωθούν: αλλιώς σε σφάλμα θα έμενε άδεια οθόνη
+  renderList();
+  setTimeout(() => map.invalidateSize(), 50);
+}
+
+// ===================== ΕΡΓΑ =====================
+const projKey = () => 'pm_proj_' + (ME ? ME.username : '');
+const curProj = () => PROJECTS.find(p => p.id === PROJ) || null;
+async function loadProjects(keep) {
+  PROJECTS = await api('projects');
+  let want = keep || PROJ;
+  want = want || ls.get(projKey());
+  if (!PROJECTS.some(p => p.id === want)) want = (PROJECTS.find(p => !p.archived) || PROJECTS[0] || {}).id || null;
+  PROJ = want;
+  if (PROJ) ls.set(projKey(), PROJ);
+  renderProjSel(); applyProjectSettings();
+}
+function renderProjSel() {
+  $('projSel').innerHTML = PROJECTS.length
+    ? PROJECTS.map(p => `<option value="${esc(p.id)}" ${p.id === PROJ ? 'selected' : ''}>${esc(p.name)}${p.archived ? ' (αρχείο)' : ''}</option>`).join('')
+    : '<option value="">— κανένα έργο —</option>';
+}
+// Τα κριτήρια σύμβασης και τα βάρη βαθμολογίας είναι ανά έργο: τα CFG.contract και SCORE_CRITERIA
+// κρατούν τις τιμές του τρέχοντος έργου, και τα DEF_* τις προεπιλογές για όσα δεν έχει ορίσει το έργο.
+const DEF_CRITERIA = { ...CFG.contract };
+const DEF_WEIGHTS = {};
+function applyProjectSettings() {
+  const p = curProj();
+  drawAreas();
+  Object.assign(CFG.contract, DEF_CRITERIA, (p && p.criteria) || {});
+  if (!Object.keys(DEF_WEIGHTS).length) for (const c of SCORE_CRITERIA) DEF_WEIGHTS[c[0]] = c[2];
+  for (const c of SCORE_CRITERIA) c[2] = (p && p.weights && p.weights[c[0]] != null) ? p.weights[c[0]] : DEF_WEIGHTS[c[0]];
+}
+async function switchProject(id) {
+  if (id === PROJ) return;
+  if (DIRTY && !confirm('Υπάρχουν μη αποθηκευμένες αλλαγές. Να απορριφθούν;')) { renderProjSel(); return; }
+  PROJ = id; DIRTY = false; CUR = null; SEARCH = '';
+  ls.set(projKey(), PROJ);
+  applyProjectSettings();
+  try { await loadPlots(); } catch (e) { toast(e.message, 'err'); }
+  if (id !== PROJ) return;                 // πατήθηκε στο μεταξύ άλλο έργο
+  if (VIEW === 'map') renderMapPage(false); else if (VIEW === 'compare') renderCompare(false); else renderList();
+}
+const fileSlug = () => { const p = curProj(); return p ? p.name.replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, '_').slice(0, 40) + '_' : ''; };
+
+// --- διαχείριση έργων (admin) ---
+function openProjects() {
+  openModal(`<div class="ph"><h2>Έργα</h2><button class="btn sm" onclick="closeModal()">✕</button></div><div class="mb" id="projBody"></div>`);
+  renderProjects();
+}
+function renderProjects() {
+  if (!$('projBody')) return;                      // το παράθυρο «Έργα» έκλεισε στο μεταξύ
+  $('projBody').innerHTML = `
+  <fieldset><legend>Νέο έργο</legend><div class="grid">
+    <label class="fld"><span>Όνομα έργου</span><input type="text" id="npName" placeholder="π.χ. Αναζήτηση Παπαδόπουλου"></label>
+    <label class="fld"><span>Πελάτης</span><input type="text" id="npClient"></label>
+    <div class="full row" style="justify-content:flex-end"><button class="btn primary sm" onclick="addProject()">Δημιουργία</button></div>
+  </div></fieldset>
+  <div class="plist">${PROJECTS.map(p => `<div class="pitem">
+    <div class="nm"><b>${esc(p.name)}</b>${p.archived ? ' <span class="bdg">αρχείο</span>' : ''}${p.id === PROJ ? ' <span class="bdg b">τρέχον</span>' : ''}
+      <div class="note">${esc(p.client || '')}</div></div>
+    <button class="btn sm" onclick="editProject('${esc(p.id)}')">Ρυθμίσεις</button></div>`).join('') || '<div class="note">Κανένα έργο</div>'}</div>
+  <fieldset style="margin-top:12px"><legend>Αντίγραφα ασφαλείας</legend>
+    <div class="note" style="margin-bottom:6px">Πλήρες αντίγραφο όλων των δεδομένων: έργα (με ρυθμίσεις και πολύγωνα), οικόπεδα (με εργασίες, ελέγχους, σημεία, ημερολόγιο, αρχεία), παρατηρήσεις και χρήστες με την πρόσβασή τους.
+      Οι κωδικοί περιέχονται μόνο κρυπτογραφημένοι (scrypt), αλλά το αρχείο είναι εμπιστευτικό. Ένα αυτόματο αντίγραφο γίνεται κάθε μέρα και κρατιούνται τα 30 τελευταία.</div>
+    <div class="row" style="gap:6px;flex-wrap:wrap">
+      <button class="btn sm" onclick="downloadBackup()">⬇ Λήψη τώρα</button>
+      <button class="btn sm" onclick="saveBackupNow()">＋ Αποθήκευση στο Netlify τώρα</button>
+      <label class="btn danger sm" style="cursor:pointer">📤 Επαναφορά από αρχείο<input type="file" accept=".json,application/json" hidden onchange="restoreFile(this)"></label>
+    </div>
+    <div id="bkList" style="margin-top:8px"><span class="note">Φόρτωση…</span></div>
+  </fieldset>`;
+  renderBackups();
+}
+// --- αντίγραφα ασφαλείας ---
+const BK_KIND = { daily: 'Αυτόματο', manual: 'Χειροκίνητο', 'pre-restore': 'Πριν από επαναφορά' };
+function bkDate(key) {                                // daily/2026-10-31.json · manual/2026-10-31T15-20-11-123Z-ab12.json
+  const f = key.split('/')[1].replace(/\.json$/, '');
+  const m = /^(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z/.exec(f);
+  return m ? fmtDT(`${m[1]}T${m[2]}:${m[3]}:${m[4]}.${m[5]}Z`) : fmtDate(f.slice(0, 10));
+}
+const bkSummary = (d) => d.counts
+  ? `${nOf(d.counts.projects, 'έργο', 'έργα')}, ${nOf(d.counts.plots, 'οικόπεδο', 'οικόπεδα')}, ${nOf(d.counts.reviews, 'παρατήρηση', 'παρατηρήσεις')}, ${nOf(d.counts.users, 'χρήστης', 'χρήστες')}`
+  : `${nOf((d.projects || []).length, 'έργο', 'έργα')}, ${nOf((d.plots || []).length, 'οικόπεδο', 'οικόπεδα')}, ${nOf((d.users || []).length, 'χρήστης', 'χρήστες')} (παλιά μορφή, χωρίς κωδικούς)`;
+// προειδοποιήσεις/σφάλματα ακεραιότητας του αντιγράφου, για να τα δει ο διαχειριστής πριν επαναφέρει
+const bkIssues = (d) => {
+  const g = (d && d.integrity) || {}, e = g.errors || [], w = g.warnings || [];
+  return (e.length ? `\n\n✖ Σφάλματα (η επαναφορά θα απορριφθεί):\n- ${e.slice(0, 5).join('\n- ')}` : '')
+    + (w.length ? `\n\n⚠ Προειδοποιήσεις:\n- ${w.slice(0, 5).join('\n- ')}${w.length > 5 ? `\n… και ${w.length - 5} ακόμη` : ''}` : '');
+};
+async function renderBackups() {
+  const box = $('bkList'); if (!box) return;
+  try {
+    const list = await api('backups');
+    if (!$('bkList')) return;
+    $('bkList').innerHTML = list.length ? `<div class="plist">${list.map(b => `<div class="pitem">
+      <div class="nm">${esc(bkDate(b.key))} <span class="bdg ${b.kind === 'daily' ? 'g' : b.kind === 'manual' ? 'b' : 'o'}">${esc(BK_KIND[b.kind] || b.kind)}</span></div>
+      <button class="btn sm" onclick="downloadStoredBackup('${esc(b.key)}')" title="Λήψη στον υπολογιστή">⬇</button>
+      <button class="btn danger sm" onclick="restoreBackup('${esc(b.key)}')" title="Επαναφορά σε αυτό το αντίγραφο">↺ Επαναφορά</button></div>`).join('')}</div>`
+      : '<span class="note">Δεν υπάρχουν ακόμη αποθηκευμένα αντίγραφα. Το πρώτο αυτόματο γίνεται μέσα στο επόμενο 24ωρο μετά το deploy.</span>';
+  } catch (e) { if ($('bkList')) $('bkList').innerHTML = `<span class="bad">${esc(e.message)}</span>`; }
+}
+async function saveBackupNow() {
+  try { const r = await api('backups', { method: 'POST' }); toast(`Αποθηκεύτηκε: ${bkSummary(r)}`, 'ok'); renderBackups(); }
+  catch (e) { toast(e.message, 'err'); }
+}
+async function downloadStoredBackup(key) {
+  try { const d = await api('backups/' + key); downloadBlob(new Blob([JSON.stringify(d, null, 1)], { type: 'application/json' }), 'plotmanager_backup_' + key.replace(/\//g, '_')); }
+  catch (e) { toast(e.message, 'err'); }
+}
+// Επαναφορά: αντικαθιστά ΟΛΑ τα δεδομένα. Πρώτα σύνοψη και γραπτή επιβεβαίωση.
+function confirmRestore(what, summary) {
+  const t = prompt(`Επαναφορά από ${what}\n\nΠεριέχει: ${summary}\n\nΟΛΑ τα τρέχοντα δεδομένα (έργα, οικόπεδα, παρατηρήσεις, χρήστες) θα αντικατασταθούν από το αντίγραφο. Πριν από αυτό σώζεται αυτόματα αντίγραφο της τρέχουσας κατάστασης («Πριν από επαναφορά»).\n\nΓράψτε ΕΠΑΝΑΦΟΡΑ για να συνεχίσετε:`);
+  return t !== null && t.trim().toUpperCase() === 'ΕΠΑΝΑΦΟΡΑ';
+}
+async function afterRestore(r) {
+  closeModal(); CUR = null; DIRTY = false;
+  try { await loadProjects(); await loadPlots(); } catch {}
+  if (VIEW === 'map') renderMapPage(false); else if (VIEW === 'compare') renderCompare(false); else renderList();
+  toast(`Η επαναφορά ολοκληρώθηκε: ${bkSummary(r)}.` + (r.inactive && r.inactive.length ? ` Χωρίς κωδικό (ανενεργοί, ορίστε νέο κωδικό): ${r.inactive.join(', ')}.` : ''), 'ok');
+}
+async function restoreBackup(key) {
+  // η σύνοψη διαβάζεται από το αντίγραφο· αν δεν φτάσει (π.χ. πολύ μεγάλο για λήψη), η επαναφορά γίνεται πάλι στον διακομιστή
+  let summary; try { const d = await api('backups/' + key); summary = bkSummary(d) + bkIssues(d); } catch { summary = '(η σύνοψη δεν είναι διαθέσιμη)'; }
+  if (!confirmRestore(`το αντίγραφο της ${bkDate(key)}`, summary)) return toast('Η επαναφορά ακυρώθηκε');
+  try { await afterRestore(await api('restore', { method: 'POST', body: { key } })); } catch (e) { toast(e.message, 'err'); }
+}
+async function restoreFile(input) {
+  const file = input.files && input.files[0]; input.value = '';
+  if (!file) return;
+  if (file.size > 5.5e6) return toast('Το αρχείο είναι πολύ μεγάλο για επαναφορά από εδώ (έως 5,5 MB)', 'err');
+  let d; try { d = JSON.parse(await file.text()); } catch { return toast('Το αρχείο δεν είναι έγκυρο JSON', 'err'); }
+  if (!d || d.app !== 'PlotManager') return toast('Το αρχείο δεν είναι αντίγραφο ασφαλείας του PlotManager', 'err');
+  if (!confirmRestore(`το αρχείο «${file.name}»`, bkSummary(d) + bkIssues(d))) return toast('Η επαναφορά ακυρώθηκε');
+  try { await afterRestore(await api('restore', { method: 'POST', body: { data: d } })); } catch (e) { toast(e.message, 'err'); }
+}
+async function downloadBackup() {
+  try {
+    const data = await api('backup');
+    downloadBlob(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' }), 'plotmanager_backup_' + todayLocal() + '.json');
+    toast(`Αντίγραφο: ${bkSummary(data)}` + (data.integrity && data.integrity.errors.length ? ' · ΠΡΟΣΟΧΗ: βρέθηκαν προβλήματα ακεραιότητας' : ''), data.integrity && data.integrity.errors.length ? 'err' : 'ok');
+  } catch (e) { toast(e.message, 'err'); }
+}
+async function addProject() {
+  try {
+    const p = await api('projects', { method: 'POST', body: { name: $('npName').value, client: $('npClient').value } });
+    await loadProjects(PROJ); toast('Το έργο δημιουργήθηκε', 'ok'); editProject(p.id);
+  } catch (e) { toast(e.message, 'err'); }
+}
+function editProject(id) {
+  const p = PROJECTS.find(x => x.id === id); if (!p || !$('projBody')) return;
+  const c = { ...DEF_CRITERIA, ...(p.criteria || {}) }, w = { ...DEF_WEIGHTS, ...(p.weights || {}) }, bt = btOf(p);
+  const n = (k, v, lbl) => `<label class="fld"><span>${lbl}</span><input type="text" inputmode="decimal" data-pk="${k}" value="${esc(String(v).replace('.', ','))}"></label>`;
+  $('projBody').innerHTML = `
+  <div class="row" style="margin-bottom:10px"><button class="btn sm" onclick="renderProjects()">← Έργα</button></div>
+  <fieldset><legend>Στοιχεία έργου</legend><div class="grid">
+    <label class="fld"><span>Όνομα έργου</span><input type="text" id="epName" value="${esc(p.name)}"></label>
+    <label class="fld"><span>Πελάτης</span><input type="text" id="epClient" value="${esc(p.client || '')}"></label>
+    <label class="fld full"><span>Περιγραφή / σύμβαση</span><textarea id="epDesc" rows="2">${esc(p.description || '')}</textarea></label>
+    <label class="chk"><input type="checkbox" id="epArch" ${p.archived ? 'checked' : ''}><span>Αρχειοθετημένο (ολοκληρώθηκε)</span></label>
+  </div></fieldset>
+  <fieldset><legend>Κριτήρια σύμβασης</legend><div class="grid">
+    <label class="fld"><span>Είδος κτιρίου</span><select id="epBt" onchange="$('epBtX').classList.toggle('hidden', this.value !== 'allo')">
+      ${BUILDING_TYPES.map(([k, sg]) => `<option value="${k}" ${bt.key === k ? 'selected' : ''}>${esc(cap(sg))}</option>`).join('')}</select></label>
+    <div class="fld full ${bt.key === 'allo' ? '' : 'hidden'}" id="epBtX"><span>Άλλο είδος: ενικός · πληθυντικός · γενική πληθυντικού (π.χ. ιατρείο · ιατρεία · ιατρείων)</span>
+      <div class="row" style="gap:6px"><input type="text" id="epBtSg" maxlength="40" value="${esc(bt.key === 'allo' ? bt.sg : '')}" placeholder="ιατρείο">
+        <input type="text" id="epBtPl" maxlength="40" value="${esc(bt.key === 'allo' ? bt.pl : '')}" placeholder="ιατρεία">
+        <input type="text" id="epBtGpl" maxlength="40" value="${esc(bt.key === 'allo' ? bt.gpl : '')}" placeholder="ιατρείων"></div></div>
+    ${n('c.center_km', c.center_km, 'Απόσταση από κέντρο &lt; (km)')}${n('c.sea_km', c.sea_km, 'Απόσταση από θάλασσα &lt; (km)')}
+    ${n('c.road_m', c.road_m, 'Πλάτος οδού &gt; (m)')}${n('c.net_ratio', c.net_ratio, 'Λόγος καθαρού / μικτού')}
+    ${n('c.units_min', c.units_min, 'Απαιτούμενος αριθμός κτιρίων: από')}${n('c.units_max', c.units_max, 'Απαιτούμενος αριθμός κτιρίων: έως')}
+    ${n('c.house_min_m2', c.house_min_m2, 'Ανά κτίριο: ελάχ. καθαρό εμβαδόν (m²)')}${n('c.house_max_m2', c.house_max_m2, 'Ανά κτίριο: μέγ. καθαρό εμβαδόν (m²)')}
+  </div></fieldset>
+  <fieldset><legend>Βάρη βαθμολογίας (%)</legend><div class="grid">
+    ${SCORE_CRITERIA.map(([k, l]) => n('w.' + k, w[k], l)).join('')}
+  </div></fieldset>
+  <fieldset><legend>Πολύγωνα έργου</legend><div id="areaBox">${areaListHtml(p)}</div></fieldset>
+  <div class="row" style="justify-content:space-between">
+    <button class="btn danger sm" onclick="deleteProject('${esc(p.id)}')">Διαγραφή έργου</button>
+    <button class="btn success" onclick="saveProject('${esc(p.id)}')">Αποθήκευση</button>
+  </div>`;
+}
+// --- πολύγωνα έργου (ρυθμίσεις) ---
+function areaListHtml(p) {
+  const list = Array.isArray(p.areas) ? p.areas : [];
+  return `<div class="note" style="margin-bottom:6px">Περιοχές αναζήτησης, ζώνες κ.λπ. Φαίνονται με το χρώμα τους σε όλους τους χάρτες και στην Αναφορά.
+    Εισαγωγή από CSV του mySimpleGIS («Εξαγωγή σχημάτων»): Πολύγωνο, Ορθογώνιο, Κύκλος· οι πινέζες και οι γραμμές αγνοούνται.</div>
+  ${list.map(a => `<div class="poi-row u"><span class="poi-dot" style="background:transparent;border:2px solid ${esc(a.color)};border-radius:2px"></span>
+      <span>${esc(a.name || 'Πολύγωνο')}${a.info ? ` <span class="note">· ${esc(a.info)}</span>` : ''}</span>
+      <span class="note">${nOf(a.coords.length, 'κορυφή', 'κορυφές')}</span>
+      <button class="btn danger sm" onclick="delArea('${esc(p.id)}','${esc(a.id)}')" title="Αφαίρεση">✕</button></div>`).join('') || '<div class="note">Κανένα πολύγωνο</div>'}
+  <div class="row" style="margin-top:8px;gap:6px">
+    <label class="btn primary sm" style="cursor:pointer">📥 Εισαγωγή πολυγώνων<input type="file" accept=".csv,text/csv,text/plain" hidden onchange="importAreas('${esc(p.id)}', this)"></label>
+    ${list.length ? `<button class="btn danger sm" onclick="clearAreas('${esc(p.id)}')">Διαγραφή όλων</button>` : ''}
+  </div>`;
+}
+// Κάθε αλλαγή ξεκινά από τα ΤΡΕΧΟΝΤΑ πολύγωνα του διακομιστή (όχι από όσα φορτώθηκαν στη σύνδεση),
+// ώστε να μη σβηστούν σιωπηλά όσα πρόσθεσε στο μεταξύ άλλη συσκευή ή καρτέλα
+async function putAreas(id, change, msg) {
+  try {
+    const fresh = await api('projects/' + id);
+    const res = change(Array.isArray(fresh.areas) ? fresh.areas : []);
+    await api('projects/' + id, { method: 'PUT', body: { areas: res.areas } });
+    msg = typeof msg === 'function' ? msg(res) : msg;
+    await loadProjects(PROJ);                            // ξανασχεδιάζει τα πολύγωνα του τρέχοντος έργου
+    const p = PROJECTS.find(x => x.id === id); if (p && $('areaBox')) $('areaBox').innerHTML = areaListHtml(p);
+    toast(msg, 'ok');
+  } catch (e) { toast(e.message, 'err'); }
+}
+async function importAreas(id, input) {
+  const file = input.files && input.files[0]; input.value = '';
+  if (!file) return;
+  if (file.size > 5e6) return toast('Το αρχείο είναι πολύ μεγάλο (έως 5 MB)', 'err');
+  if (!window.proj4) return toast('Δεν φορτώθηκε η βιβλιοθήκη μετατροπής συντεταγμένων. Ανανεώστε τη σελίδα.', 'err');
+  let res;
+  try { res = parseAreasCsv(await file.text()); } catch (e) { return toast('Δεν διαβάστηκε το αρχείο: ' + e.message, 'err'); }
+  if (!res.areas.length) return toast('Δεν βρέθηκαν πολύγωνα στο αρχείο' + (res.skipped.length ? ` (αγνοήθηκαν: ${[...new Set(res.skipped)].join(', ')})` : ''), 'err');
+  const ign = res.skipped.length ? ` · αγνοήθηκαν ${res.skipped.length} άλλα σχήματα` : '';
+  // πολύγωνα με ίδιες ακριβώς κορυφές με υπάρχον (π.χ. ίδιο αρχείο δύο φορές) δεν ξαναμπαίνουν
+  const key = (a) => JSON.stringify(a.coords);
+  await putAreas(id, (cur) => {
+    const seen = new Set(cur.map(key)), add = res.areas.filter(a => !seen.has(key(a)) && seen.add(key(a)));
+    return { areas: [...cur, ...add], added: add.length, dup: res.areas.length - add.length };
+  }, (r) => (r.added ? `${r.added === 1 ? 'Προστέθηκε' : 'Προστέθηκαν'} ${nOf(r.added, 'πολύγωνο', 'πολύγωνα')}` : 'Κανένα νέο πολύγωνο') + (r.dup ? ` · ${r.dup} υπήρχαν ήδη` : '') + ign);
+}
+async function delArea(id, aid) {
+  const p = PROJECTS.find(x => x.id === id); if (!p) return;
+  const a = (p.areas || []).find(x => x.id === aid);
+  if (!confirm(`Αφαίρεση του πολυγώνου «${a ? a.name || 'Πολύγωνο' : ''}»;`)) return;
+  await putAreas(id, (cur) => ({ areas: cur.filter(x => x.id !== aid) }), 'Το πολύγωνο αφαιρέθηκε');
+}
+async function clearAreas(id) {
+  if (!confirm('Διαγραφή όλων των πολυγώνων του έργου;')) return;
+  await putAreas(id, () => ({ areas: [] }), 'Τα πολύγωνα διαγράφηκαν');
+}
+async function saveProject(id) {
+  const bk = $('epBt').value;
+  const building = bk === 'allo' ? { key: 'allo', sg: $('epBtSg').value.trim(), pl: $('epBtPl').value.trim(), gpl: $('epBtGpl').value.trim() } : { key: bk };
+  if (bk === 'allo' && !(building.sg && building.pl && building.gpl)) return toast('Συμπληρώστε ενικό, πληθυντικό και γενική πληθυντικού για το είδος κτιρίου', 'err');
+  const body = { name: $('epName').value, client: $('epClient').value, description: $('epDesc').value, archived: $('epArch').checked, building, criteria: {}, weights: {} };
+  for (const el of document.querySelectorAll('#projBody [data-pk]')) {
+    const v = parseNum(el.value, true), [g, k] = el.dataset.pk.split('.');
+    const isCount = k === 'units_min' || k === 'units_max';
+    const bad = v === null || Number.isNaN(v) || v < 0 || (k === 'net_ratio' && (v < 0.3 || v > 1)) || (g === 'w' && v > 100)
+      || (isCount && (!Number.isInteger(v) || v < 1 || v > 20));
+    el.classList.toggle('invalid', bad);
+    if (bad) return toast(k === 'net_ratio' ? 'Ο λόγος καθαρού/μικτού πρέπει να είναι από 0,3 έως 1' : g === 'w' ? 'Τα βάρη πρέπει να είναι από 0 έως 100'
+      : isCount ? 'Ο απαιτούμενος αριθμός κτιρίων είναι ακέραιος από 1 έως 20' : 'Μη έγκυρη τιμή στα κριτήρια', 'err');
+    (g === 'c' ? body.criteria : body.weights)[k] = v;
+  }
+  if (body.criteria.units_max < body.criteria.units_min) return toast('Ο αριθμός «έως» είναι μικρότερος από το «από»', 'err');
+  if (body.criteria.house_max_m2 < body.criteria.house_min_m2) return toast('Το μέγιστο εμβαδόν ανά κτίριο είναι μικρότερο από το ελάχιστο', 'err');
+  try {
+    await api('projects/' + id, { method: 'PUT', body });
+    await loadProjects(PROJ); toast('Το έργο αποθηκεύτηκε', 'ok'); renderProjects();
+    if (id === PROJ) { if (VIEW === 'compare') renderCompare(false); else if (VIEW === 'map') renderMapPage(false); else if (CUR) renderDetail(); else renderList(); }
+  } catch (e) { toast(e.message, 'err'); }
+}
+async function deleteProject(id) {
+  const p = PROJECTS.find(x => x.id === id);
+  if (!confirm(`Διαγραφή του έργου «${p ? p.name : ''}»; (Επιτρέπεται μόνο αν δεν έχει οικόπεδα.)`)) return;
+  try {
+    await api('projects/' + id, { method: 'DELETE' });
+    await loadProjects(id === PROJ ? null : PROJ); toast('Το έργο διαγράφηκε', 'ok'); renderProjects();
+    if (id !== PROJ) return;
+    await loadPlots(); if (VIEW === 'map') renderMapPage(false); else if (VIEW === 'compare') renderCompare(false); else renderList();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+// ===================== ΧΑΡΑΚΑΣ (μέτρηση απόστασης) =====================
+// Αυτόνομη συνάρτηση: χρησιμοποιείται στον κύριο χάρτη και ενσωματώνεται αυτούσια στον χάρτη της Αναφοράς.
+// Γεωδαιτική απόσταση Vincenty (WGS84). Κλικ: σημείο · διπλό κλικ / «Τέλος»: ολοκλήρωση · Esc: καθαρισμός.
+function addRuler(map, doc, opts) {
+  opts = opts || {};
+  if (!doc.getElementById('ruler-css')) {
+    const st = doc.createElement('style'); st.id = 'ruler-css';
+    st.textContent = `
+.ruler-tools a{font-size:16px;line-height:30px;text-align:center;cursor:pointer;user-select:none}
+.ruler-tools a.on{background:#ffdf5d!important;color:#0d1117!important}
+.ruler-measuring,.ruler-measuring .leaflet-interactive{cursor:crosshair!important}
+/* !important: ο Leaflet έχει πιο ειδικό κανόνα (.leaflet-pane > svg path.leaflet-interactive) που κάνει τα σημεία πατήσιμα */
+.ruler-measuring .leaflet-interactive,.ruler-measuring .leaflet-marker-icon{pointer-events:none!important}
+.ruler-lbl{background:rgba(13,17,23,.9);color:#ffdf5d;border:1px solid #ffdf5d;border-radius:3px;padding:0 5px;
+  font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;box-shadow:none;white-space:nowrap}
+.ruler-lbl:before{display:none}
+.ruler-box{position:absolute;left:10px;bottom:34px;z-index:800;background:#161b22;color:#e6edf3;border:1px solid #ffdf5d;
+  border-radius:6px;padding:8px 10px;font:12px/1.45 -apple-system,"Segoe UI",Roboto,"Noto Sans",sans-serif;display:none;max-width:calc(100% - 20px)}
+.ruler-box.show{display:block}
+.ruler-box b{color:#ffdf5d;font-size:15px;font-variant-numeric:tabular-nums}
+.ruler-box .r-hint{color:#8b949e;margin-top:3px}
+.ruler-box button{margin:6px 4px 0 0;background:transparent;border:1px solid #30363d;color:#e6edf3;border-radius:6px;padding:3px 9px;font:inherit;cursor:pointer}
+.ruler-box button:hover{border-color:#ffdf5d}
+.ruler-box button:disabled{opacity:.45;cursor:default}
+@media print{.ruler-tools,.ruler-box button,.ruler-box .r-help{display:none!important}}`;
+    doc.head.appendChild(st);
+  }
+  const geoDist = (a, b) => {
+    const A = 6378137, F = 1 / 298.257223563, B = A * (1 - F), r = Math.PI / 180;
+    const L_ = (b.lng - a.lng) * r, U1 = Math.atan((1 - F) * Math.tan(a.lat * r)), U2 = Math.atan((1 - F) * Math.tan(b.lat * r));
+    const sU1 = Math.sin(U1), cU1 = Math.cos(U1), sU2 = Math.sin(U2), cU2 = Math.cos(U2);
+    let lam = L_, it = 0, sS, cS, sig, sA, c2A, c2Sm, lamP;
+    do {
+      const sL = Math.sin(lam), cL = Math.cos(lam);
+      sS = Math.sqrt((cU2 * sL) ** 2 + (cU1 * sU2 - sU1 * cU2 * cL) ** 2);
+      if (sS === 0) return 0;
+      cS = sU1 * sU2 + cU1 * cU2 * cL; sig = Math.atan2(sS, cS);
+      sA = cU1 * cU2 * sL / sS; c2A = 1 - sA * sA;
+      c2Sm = c2A ? cS - 2 * sU1 * sU2 / c2A : 0;
+      const C = F / 16 * c2A * (4 + F * (4 - 3 * c2A));
+      lamP = lam; lam = L_ + (1 - C) * F * sA * (sig + C * sS * (c2Sm + C * cS * (-1 + 2 * c2Sm * c2Sm)));
+    } while (Math.abs(lam - lamP) > 1e-12 && ++it < 200);
+    if (it >= 200) return map.distance(a, b);
+    const u2 = c2A * (A * A - B * B) / (B * B);
+    const kA = 1 + u2 / 16384 * (4096 + u2 * (-768 + u2 * (320 - 175 * u2))), kB = u2 / 1024 * (256 + u2 * (-128 + u2 * (74 - 47 * u2)));
+    const dS = kB * sS * (c2Sm + kB / 4 * (cS * (-1 + 2 * c2Sm * c2Sm) - kB / 6 * c2Sm * (-3 + 4 * sS * sS) * (-3 + 4 * c2Sm * c2Sm)));
+    return B * kA * (sig - dS);
+  };
+  const fmtM = (d) => {
+    const m = Math.round(d).toLocaleString('el-GR') + ' m';
+    return d >= 1000 ? `${m} (${(d / 1000).toLocaleString('el-GR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} km)` : m;
+  };
+  const layer = L.layerGroup().addTo(map);
+  let on = false, pts = [], ghost = null, ghostLbl = null;
+  const Ctl = L.Control.extend({
+    options: { position: 'topleft' },
+    onAdd() {
+      const c = L.DomUtil.create('div', 'leaflet-bar ruler-tools');
+      c.innerHTML = '<a href="#" role="button" title="Μέτρηση απόστασης" aria-label="Μέτρηση απόστασης">📏</a>';
+      L.DomEvent.disableClickPropagation(c);
+      return c;
+    },
+  });
+  const btn = new Ctl().addTo(map).getContainer().querySelector('a');
+  const box = L.DomUtil.create('div', 'ruler-box', map.getContainer());
+  box.setAttribute('role', 'status'); box.setAttribute('aria-live', 'polite');
+  box.innerHTML = '<div>Απόσταση: <b class="r-total">0 m</b></div><div class="r-hint r-segs"></div>' +
+    '<div class="r-hint r-help">Κλικ στον χάρτη για σημεία. Διπλό κλικ ή «Τέλος» για ολοκλήρωση.</div>' +
+    '<button type="button" class="r-undo">Αναίρεση</button><button type="button" class="r-clear">Καθαρισμός</button><button type="button" class="r-done">Τέλος</button>';
+  L.DomEvent.disableClickPropagation(box); L.DomEvent.disableScrollPropagation(box);
+  const q = (sel) => box.querySelector(sel);
+  const total = () => { let d = 0; for (let i = 1; i < pts.length; i++) d += geoDist(pts[i - 1], pts[i]); return d; };
+  const busy = () => doc.body.classList.toggle('ruler-on', on || pts.length > 0);
+  function draw() {
+    layer.clearLayers(); ghost = null; ghostLbl = null;
+    if (pts.length > 1) {
+      L.polyline(pts, { color: '#0d1117', weight: 5, opacity: .45, interactive: false }).addTo(layer);
+      L.polyline(pts, { color: '#ffdf5d', weight: 3, dashArray: '6 5', interactive: false }).addTo(layer);
+    }
+    let cum = 0;
+    pts.forEach((p, i) => {
+      if (i) cum += geoDist(pts[i - 1], p);
+      const v = L.circleMarker(p, { radius: 5, weight: 2, color: '#0d1117', fillColor: '#ffdf5d', fillOpacity: 1, interactive: false }).addTo(layer);
+      if (i) v.bindTooltip(fmtM(cum), { permanent: true, direction: 'right', offset: [7, 0], className: 'ruler-lbl' });
+    });
+    const segs = []; for (let i = 1; i < pts.length; i++) segs.push(Math.round(geoDist(pts[i - 1], pts[i])).toLocaleString('el-GR'));
+    q('.r-total').textContent = fmtM(total());
+    q('.r-segs').textContent = segs.length > 1 ? 'Τμήματα: ' + segs.join(' + ') + ' m' : '';
+    q('.r-help').style.display = on ? '' : 'none';
+    q('.r-done').style.display = on ? '' : 'none';
+    q('.r-undo').disabled = !pts.length;
+    busy();
+  }
+  function setOn(v) {
+    on = v;
+    btn.classList.toggle('on', v);
+    map.getContainer().classList.toggle('ruler-measuring', v);
+    if (v) { map.closePopup(); map.doubleClickZoom.disable(); box.classList.add('show'); if (opts.onStart) opts.onStart(); }
+    else { map.doubleClickZoom.enable(); if (!pts.length) box.classList.remove('show'); }
+    draw();
+  }
+  function clear() { pts = []; draw(); if (!on) box.classList.remove('show'); }
+  btn.addEventListener('click', (e) => { e.preventDefault(); if (on) { setOn(false); clear(); } else { clear(); setOn(true); } });
+  map.on('click', (e) => {
+    if (!on) return;
+    const lp = pts[pts.length - 1];
+    if (lp && map.latLngToContainerPoint(lp).distanceTo(e.containerPoint) < 3) return;   // 2ο κλικ διπλού κλικ
+    pts.push(e.latlng); draw();
+  });
+  map.on('dblclick', () => {
+    if (!on) return;
+    while (pts.length > 1 && pts[pts.length - 1].distanceTo(pts[pts.length - 2]) < 0.5) pts.pop();
+    setOn(false);
+  });
+  map.on('popupopen', () => { if (on) map.closePopup(); });
+  map.on('mousemove', (e) => {
+    if (!on || !pts.length) return;
+    const last = pts[pts.length - 1], d = total() + geoDist(last, e.latlng);
+    if (!ghost) {
+      ghost = L.polyline([last, e.latlng], { color: '#ffdf5d', weight: 2, opacity: .7, dashArray: '2 6', interactive: false }).addTo(layer);
+      ghostLbl = L.tooltip({ permanent: true, direction: 'right', offset: [10, 0], className: 'ruler-lbl' }).setLatLng(e.latlng).setContent(fmtM(d)).addTo(layer);
+    } else { ghost.setLatLngs([last, e.latlng]); ghostLbl.setLatLng(e.latlng).setContent(fmtM(d)); }
+  });
+  q('.r-undo').onclick = () => { pts.pop(); draw(); };
+  q('.r-clear').onclick = () => clear();
+  q('.r-done').onclick = () => setOn(false);
+  doc.addEventListener('keydown', (e) => { if (e.key === 'Escape' && (on || pts.length)) { setOn(false); clear(); } });
+  draw();
+  return { active: () => on, reset: () => { setOn(false); clear(); }, distance: geoDist };
+}
+
+// ===================== ΣΗΜΕΙΑ ΜΕ ΕΤΙΚΕΤΑ (ανά οικόπεδο) =====================
+const POI_COLORS = [['#f0883e', 'Πορτοκαλί'], ['#f85149', 'Κόκκινο'], ['#a371f7', 'Μωβ'], ['#3fb950', 'Πράσινο'], ['#58a6ff', 'Μπλε'], ['#e3b341', 'Κίτρινο']];
+const poiSvg = (c) => `<svg width="24" height="32" viewBox="0 0 24 32" aria-hidden="true"><path d="M12 1C6 1 1.5 5.5 1.5 11.3 1.5 19 12 31 12 31s10.5-12 10.5-19.7C22.5 5.5 18 1 12 1z" fill="${c}" stroke="#0d1117" stroke-width="1.5"/><circle cx="12" cy="11" r="4" fill="#fff"/></svg>`;
+const plotPois = (p) => (Array.isArray(p.markers) ? p.markers : []).filter(mk => Number.isFinite(mk.lat) && Number.isFinite(mk.lng));
+const poiIcon = (c) => L.divIcon({ className: 'poi-ico', html: poiSvg(c), iconSize: [24, 32], iconAnchor: [12, 31], tooltipAnchor: [0, -29] });
+const fmtDist = (d) => d >= 1000 ? (d / 1000).toLocaleString('el-GR', { maximumFractionDigits: 2 }) + ' km' : Math.round(d).toLocaleString('el-GR') + ' m';
+function poiDist(mk, p = CUR) {                     // απόσταση σημείου από το οικόπεδο (Vincenty, ίδια με τον χάρακα)
+  const lat = num(p && p.lat), lng = num(p && p.lng);
+  return lat === null || lng === null || !RULER ? '' : fmtDist(RULER.distance(L.latLng(lat, lng), L.latLng(mk.lat, mk.lng)));
+}
+// Τα σημεία φαίνονται όταν είναι ανοιχτός ο φάκελος ενός οικοπέδου
+function drawPoi() {
+  if (!poiLayer) return;
+  poiLayer.clearLayers();
+  if (!CUR || VIEW !== 'plots' || !Array.isArray(CUR.markers)) return;
+  CUR.markers.forEach((mk, i) => {
+    const mm = L.marker([mk.lat, mk.lng], { icon: poiIcon(mk.color), draggable: isAdmin(), keyboard: false, zIndexOffset: 500, title: mk.label || '' })
+      .bindTooltip(esc(mk.label || '—'), { permanent: true, direction: 'top', className: 'poi-lbl' })
+      .addTo(poiLayer);
+    mm.on('dragend', () => {
+      const ll = mm.getLatLng();
+      CUR.markers[i].lat = +ll.lat.toFixed(7); CUR.markers[i].lng = +ll.lng.toFixed(7);
+      markDirty(); if (TAB === 'info') renderTab();
+    });
+  });
+}
+function startPoiPick() {
+  if (RULER && RULER.active()) RULER.reset();
+  PICK = 'poi'; $('map').classList.add('picking');
+  if (window.innerWidth <= 820) $('panel').classList.add('collapsed');
+  toast('Πατήστε στον χάρτη για να τοποθετήσετε το νέο σημείο (Esc: ακύρωση)');
+}
+function addPoiAt(latlng) {
+  CUR.markers = CUR.markers || [];
+  if (CUR.markers.length >= 50) return toast('Έως 50 σημεία ανά οικόπεδο', 'err');
+  CUR.markers.push({ id: 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), lat: +latlng.lat.toFixed(7), lng: +latlng.lng.toFixed(7), label: 'Σημείο ' + (CUR.markers.length + 1), color: POI_COLORS[0][0] });
+  markDirty(); $('panel').classList.remove('collapsed');
+  if (TAB !== 'info') setTab('info'); else renderTab();
+  drawPoi();
+  const inp = document.querySelector(`[data-k="markers.${CUR.markers.length - 1}.label"]`);
+  if (inp) { inp.focus(); inp.select(); }
+  toast('Δώστε ετικέτα στο σημείο και πατήστε Αποθήκευση');
+}
+function delPoi(i) { CUR.markers.splice(i, 1); markDirty(); renderTab(); drawPoi(); }
+function focusPoi(i) {
+  const mk = CUR.markers[i]; if (!mk) return;
+  map.setView([mk.lat, mk.lng], Math.max(map.getZoom(), 18));
+  if (window.innerWidth <= 820) $('panel').classList.add('collapsed');
+}
+function poiListHtml() {
+  const list = CUR.markers || [], adm = isAdmin();
+  return `<div class="poi-list">${list.map((mk, i) => `
+    <div class="poi-row ${adm ? '' : 'u'}"><span class="poi-dot" style="background:${esc(mk.color)}"></span>
+      ${adm ? `<input type="text" data-k="markers.${i}.label" value="${esc(mk.label)}" placeholder="Ετικέτα" maxlength="120">
+        <select data-k="markers.${i}.color" title="Χρώμα">${POI_COLORS.map(([c, n]) => `<option value="${c}" ${mk.color === c ? 'selected' : ''}>${n}</option>`).join('')}</select>`
+      : `<span>${esc(mk.label || '—')}</span>`}
+      <span class="note poi-d" title="Απόσταση από το οικόπεδο">${poiDist(mk)}</span>
+      <span class="row" style="gap:4px"><button class="btn sm" onclick="focusPoi(${i})" title="Εστίαση">◎</button>${adm ? `<button class="btn danger sm" onclick="delPoi(${i})" title="Αφαίρεση">✕</button>` : ''}</span>
+    </div>`).join('') || '<span class="note">Κανένα σημείο</span>'}</div>
+    ${adm ? '<div class="row" style="margin-top:8px"><button class="btn primary sm" onclick="startPoiPick()">＋ Σημείο από τον χάρτη</button><span class="note">σύρετε ένα σημείο για να το μετακινήσετε</span></div>' : ''}`;
+}
+
+// ===================== ΠΟΛΥΓΩΝΑ ΕΡΓΟΥ =====================
+// Αποθηκεύονται στο έργο ({name, comment, info, color, coords:[[lat,lng],…]}) και φαίνονται σε όλους τους χάρτες
+const projAreas = () => { const p = curProj(); return (p && Array.isArray(p.areas)) ? p.areas : []; };
+// μόνο περίγραμμα, χωρίς γέμισμα: φαίνονται τα όρια και το υπόβαθρο μένει καθαρό
+const areaStyle = (c) => ({ color: c, weight: 2.5, opacity: .95, fill: false });
+function drawAreas() {
+  if (!areaLayer) return;
+  areaLayer.clearLayers();
+  for (const a of projAreas()) {
+    const pg = L.polygon(a.coords, { pane: 'areas', ...areaStyle(a.color) });
+    pg.bindTooltip(esc(a.name || 'Πολύγωνο') + (a.info ? ` <span style="opacity:.7">· ${esc(a.info)}</span>` : '') + (a.comment ? `<br><span style="opacity:.8">${esc(a.comment)}</span>` : ''), { sticky: true });
+    // επιλογή θέσης από τον χάρτη: το κλικ πάνω στο πολύγωνο μετρά ως κλικ στον χάρτη
+    pg.on('click', (e) => { if (RULER && RULER.active()) return; L.DomEvent.stopPropagation(e); if (PICK) onMapClick(e); });
+    pg.addTo(areaLayer);
+  }
+}
+// σημείο εντός πολυγώνου (ray casting· αρκετά ακριβές για οικόπεδα και περιοχές)
+function pointInArea(lat, lng, coords) {
+  let inside = false;
+  for (let i = 0, j = coords.length - 1; i < coords.length; j = i++) {
+    const [yi, xi] = coords[i], [yj, xj] = coords[j];
+    if ((yi > lat) !== (yj > lat) && lng < (xj - xi) * (lat - yi) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+// Ανάγνωση CSV του mySimpleGIS («Εξαγωγή σχημάτων»): Πολύγωνο / Ορθογώνιο / Κύκλος με κορυφές σε ΕΓΣΑ'87
+function csvRow(line) {                              // μία γραμμή CSV με εισαγωγικά ("" = ")
+  const out = []; let cur = '', q = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (q) { if (ch === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += ch; }
+    else if (ch === '"') q = true; else if (ch === ',') { out.push(cur); cur = ''; } else cur += ch;
+  }
+  out.push(cur); return out;
+}
+function parseAreasCsv(text) {
+  const areas = [], skipped = [];
+  for (const raw of text.replace(/^\ufeff/, '').split(/\r?\n/)) {
+    const line = raw.trim(); if (!line || line.startsWith('"===') || line.startsWith('"Για ') || line.startsWith('Σχήμα,')) continue;
+    const f = csvRow(line), shape = (f[0] || '').trim();
+    if (!/^(Πολύγωνο|Ορθογώνιο|Κύκλος)$/i.test(shape)) { if (shape) skipped.push(shape); continue; }
+    const pts = String(f[f.length - 1] || '').trim().split(/\s+/).map(t => t.split(',').map(Number)).filter(xy => xy.length === 2 && xy.every(Number.isFinite));
+    let coords = pts.map(([x, y]) => {
+      if (Math.abs(x) <= 180 && Math.abs(y) <= 90) return [y, x];               // ήδη WGS84 (μήκος, πλάτος)
+      const [lng, lat] = proj4('EPSG:2100', 'EPSG:4326', [x, y]); return [lat, lng];  // ΕΓΣΑ'87 → WGS84
+    }).map(([la, ln]) => [+la.toFixed(7), +ln.toFixed(7)]);
+    if (coords.length > 1 && coords[0][0] === coords[coords.length - 1][0] && coords[0][1] === coords[coords.length - 1][1]) coords = coords.slice(0, -1);  // κλειστό: η τελευταία = η πρώτη
+    if (coords.length < 3) { skipped.push(shape + ' (λιγότερες από 3 κορυφές)'); continue; }
+    areas.push({ name: (f[1] || '').trim(), comment: (f[2] || '').trim(), color: (f[3] || '').trim(), info: f.length > 5 ? (f[4] || '').trim() : '', coords });
+  }
+  return { areas, skipped };
+}
+
+// ===================== ΧΑΡΤΗΣ =====================
+function initMap() {
+  map = L.map('map', { zoomControl: true, maxZoom: 20 }).setView(CFG.center, CFG.zoom);
+  const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors' });
+  const ktima = L.tileLayer.wms(CFG.ktimaWms, { layers: CFG.ktimaLayer, format: 'image/png', transparent: true, version: '1.1.1', crs: L.CRS.EPSG4326, maxZoom: 20, minZoom: 6, bounds: [[34.5, 19.0], [41.5, 28.5]], attribution: 'Κτηματολόγιο ©' });
+  osm.addTo(map);
+  // πολύγωνα έργου: δικό τους επίπεδο κάτω από οικόπεδα και σημεία (overlayPane = 400)
+  map.createPane('areas').style.zIndex = 350;
+  areaLayer = L.layerGroup().addTo(map);
+  L.control.layers({ 'OpenStreetMap': osm, 'Κτηματολόγιο (ορθοφωτό)': ktima }, { 'Πολύγωνα έργου': areaLayer }, { position: 'topright' }).addTo(map);
+  L.control.scale({ imperial: false }).addTo(map);
+  markerLayer = L.layerGroup().addTo(map);
+  poiLayer = L.layerGroup().addTo(map);
+  map.on('click', onMapClick);
+  // ο χάρακας ακυρώνει την «επιλογή θέσης από τον χάρτη», ώστε ένα κλικ να μη κάνει δύο πράγματα
+  RULER = addRuler(map, document, { onStart: () => { if (PICK) { PICK = false; $('map').classList.remove('picking'); } } });
+}
+// Κατάσταση κριτηρίων σύμβασης: το τσεκ «πρώτος έλεγχος» σημαίνει ότι ο έλεγχος ΕΓΙΝΕ·
+// αν οι καταχωρημένες τιμές αποτυγχάνουν, δεν εμφανίζεται ως ✓ (χωρίς τιμές ισχύει η κρίση του διαχειριστή)
+function critStatus(p) {
+  if (p.crit_rejected) return 'rejected';
+  if (!p.crit_checked) return null;
+  return critEval(p).all === false ? 'fail' : 'ok';
+}
+const CRIT_BADGE = {
+  rejected: '<span class="bdg r">Απορρίφθηκε (κριτήρια)</span>',
+  fail: '<span class="bdg o" title="Ο έλεγχος έγινε, αλλά κάποια τιμή είναι εκτός των ορίων της σύμβασης">Κριτήρια ✗ εκτός ορίων</span>',
+  ok: '<span class="bdg g">Κριτήρια ✓</span>',
+};
+function plotColor(p) {
+  if (p.crit_rejected || phaseOf(p) === 'rejected') return '#f85149';
+  if (['B', 'done'].includes(phaseOf(p))) return '#a371f7';
+  if (p.rejections && p.rejections.length) return '#d29922';
+  if (p.approvals && p.approvals.length) return '#a371f7';
+  if (critStatus(p) === 'fail') return '#f0883e';
+  if (critStatus(p) === 'ok') return '#3fb950';
+  return '#58a6ff';
+}
+function renderMarkers() {
+  markerLayer.clearLayers();
+  const pts = [];
+  // σελίδα χάρτη: φίλτρο χάρτη · λίστα: ό,τι φαίνεται στη λίστα · ανοιχτός φάκελος: ΜΟΝΟ το οικόπεδο
+  // (όλα μαζί δείχνει ο γενικός χάρτης· στον φάκελο τα άλλα οικόπεδα θα μπέρδευαν)
+  for (const p of (VIEW === 'map' ? mapPlots() : (CUR ? PLOTS.filter(x => x.id === CUR.id) : filteredPlots()))) {
+    const lat = num(p.lat), lng = num(p.lng);
+    if (lat === null || lng === null) continue;
+    const sel = CUR && CUR.id === p.id;
+    const m = L.circleMarker([lat, lng], { radius: sel ? 10 : 7, color: sel ? '#fff' : '#0d1117', weight: 2, fillColor: plotColor(p), fillOpacity: .95 });
+    m.bindTooltip(esc((p.code ? p.code + ' · ' : '') + (p.title || '')), { direction: 'top', offset: [0, -6] });
+    if (VIEW === 'map') m.bindPopup(plotPopup(p), { maxWidth: 280 });
+    else m.on('click', (e) => {
+      if (RULER && RULER.active()) return;
+      L.DomEvent.stopPropagation(e);
+      if (PICK) onMapClick(e);                       // επιλογή θέσης: το κλικ μετρά ως κλικ στον χάρτη
+      else if (!CUR || CUR.id !== p.id) openPlot(p.id);   // το ήδη ανοιχτό οικόπεδο δεν ξαναφορτώνεται (θα χάνονταν αλλαγές)
+    });
+    m.addTo(markerLayer); pts.push([lat, lng]);
+  }
+  return pts;
+}
+function fitAll() {
+  const pts = renderMarkers();
+  if (pts.length === 1) map.setView(pts[0], 16);
+  else if (pts.length > 1) map.fitBounds(pts, { padding: [40, 40], maxZoom: 16 });
+  else if (projAreas().length) map.fitBounds(projAreas().flatMap(a => a.coords), { padding: [40, 40], maxZoom: 16 });
+}
+function startPick() {
+  if (RULER && RULER.active()) RULER.reset();
+  PICK = 'plot'; $('map').classList.add('picking');
+  if (window.innerWidth <= 820) $('panel').classList.add('collapsed');
+  toast('Πατήστε στον χάρτη για να ορίσετε τη θέση του οικοπέδου (Esc: ακύρωση)');
+}
+function onMapClick(e) {
+  if (RULER && RULER.active()) return;
+  if (!PICK || !CUR) return;
+  if (PICK === 'poi') { PICK = false; $('map').classList.remove('picking'); return addPoiAt(e.latlng); }
+  PICK = false; $('map').classList.remove('picking');
+  CUR.lat = +e.latlng.lat.toFixed(7); CUR.lng = +e.latlng.lng.toFixed(7);
+  markDirty();
+  if (tempMarker) map.removeLayer(tempMarker);
+  tempMarker = L.marker(e.latlng).addTo(map);
+  $('panel').classList.remove('collapsed');
+  if (TAB === 'info') renderTab();
+  toast('Η θέση ορίστηκε — μην ξεχάσετε την Αποθήκευση');
+}
+// Esc: κλείνει μεγέθυνση φωτογραφίας ή παράθυρο· αλλιώς ακυρώνει την «επιλογή από τον χάρτη»
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (!$('lightbox').classList.contains('hidden')) return $('lightbox').classList.add('hidden');
+  if (!$('modal').classList.contains('hidden')) return closeModal();
+  if (PICK) { PICK = false; $('map').classList.remove('picking'); $('panel').classList.remove('collapsed'); toast('Ακυρώθηκε η επιλογή από τον χάρτη'); }
+});
+function togglePanel() { $('panel').classList.toggle('collapsed'); setTimeout(() => map.invalidateSize(), 50); }
+
+// ===================== ΣΕΛΙΔΑ ΧΑΡΤΗ =====================
+function setView(v, force) {
+  if (v === VIEW) return;
+  if (!force && DIRTY && !confirm('Υπάρχουν μη αποθηκευμένες αλλαγές. Να απορριφθούν;')) return;
+  VIEW = v; DIRTY = false; PICK = false; $('map').classList.remove('picking');
+  document.querySelectorAll('.navbtn').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  $('panel').classList.toggle('hidden', v !== 'plots');
+  $('mapTools').classList.toggle('hidden', v !== 'map');
+  $('map').classList.toggle('hidden', v === 'compare');
+  $('compare').classList.toggle('hidden', v !== 'compare');
+  map.closePopup();
+  if (force) return;
+  if (v !== 'plots') { CUR = null; if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; } drawPoi(); }
+  if (v === 'map') renderMapPage(true);
+  else if (v === 'compare') renderCompare(true);
+  else renderList();
+  setTimeout(() => map.invalidateSize(), 50);
+}
+// Απορριφθέν: ρητή απόρριψη (φάση/κριτήρια) ή ΑΠΟΡΡΙΨΗ πελάτη πριν ξεκινήσει η Φάση Β
+const isRejected = (p) => {
+  if (phaseOf(p) === 'rejected' || p.crit_rejected) return true;
+  if (['B', 'done'].includes(phaseOf(p))) return false;
+  return !!(p.rejections && p.rejections.length);
+};
+const hasPos = (p) => !!posOf(p);
+// «Μεσίτης: Όνομα τηλέφωνο» / «Ιδιοκτήτης: …» (για εξαγωγές)
+const contactText = (p) => p.contact_name ? (p.contact_type === 'broker' ? 'Μεσίτης: ' : 'Ιδιοκτήτης: ') + p.contact_name + (p.contact_phone ? ' ' + p.contact_phone : '') : '';
+function mapPlots() {
+  const withRej = $('mtRej') ? $('mtRej').checked : true;
+  return PLOTS.filter(p => hasPos(p) && (withRej || !isRejected(p)));
+}
+async function renderMapPage(reload) {
+  if (reload) { try { await loadPlots(); } catch (e) { toast(e.message, 'err'); } }
+  const shown = mapPlots(), noPos = PLOTS.filter(p => !hasPos(p)).length;
+  $('mtCount').textContent = `${shown.length} στον χάρτη` + (noPos ? ` · ${noPos} χωρίς θέση` : '');
+  fitAll();
+}
+function plotPopup(p) {
+  const st = phaseBadge(p) + (CRIT_BADGE[critStatus(p)] || '<span class="bdg">Χωρίς έλεγχο</span>');
+  return `<b>${p.code ? esc(p.code) + ' · ' : ''}${esc(p.title || '')}</b><br>
+    <span class="note">${esc([p.municipality, p.address].filter(Boolean).join(' — '))}</span><br>
+    ${num(p.area) !== null ? fmt(num(p.area)) + ' m²' : ''}${num(p.price) !== null ? ' · ' + fmt(num(p.price), 0) + ' €' : ''}
+    <div class="badges" style="margin:4px 0 8px">${st}${p.rejections && p.rejections.length ? `<span class="bdg o">ΑΠΟΡΡΙΨΗ ×${p.rejections.length}</span>` : ''}${p.units ? `<span class="bdg b">${esc(unitsLabel(p.units))}</span>` : ''}</div>
+    <div class="row" style="gap:6px;flex-wrap:wrap"><button class="btn primary sm" onclick="openFromMap('${p.id}')">📁 Άνοιγμα φακέλου</button>
+    <button class="btn sm" onclick="copyCoords('${p.id}')" title="Αντιγραφή συντεταγμένων για πρόγραμμα πλοήγησης">📋 Συντεταγμένες</button>
+    <a class="btn sm" target="_blank" rel="noopener" href="${esc(earthUrl(p))}" title="Google Earth σε 3D">Earth 3D ↗</a>
+    <button class="btn sm" onclick="openKtimatologio('${p.id}')" title="Ανοίγει το maps.ktimatologio.gr κεντραρισμένο στο οικόπεδο${p.kaek ? ' (και αντιγράφει το ΚΑΕΚ)' : ''}">Κτηματολόγιο ↗</button>
+    <a class="btn sm" target="_blank" rel="noopener" href="${esc(teeUrl(p))}" title="Ενιαίος Ψηφιακός Χάρτης ΤΕΕ">Χάρτης ΤΕΕ ↗</a>
+    <button class="btn sm" onclick="openValuemaps('${p.id}')" title="valuemaps.gov.gr (αντιγράφει τις συντεταγμένες)">Αντικ. αξίες ↗</button>
+    <a class="btn sm" target="_blank" rel="noopener" href="${esc(floodsUrl(p))}" title="Χάρτες κινδύνου πλημμύρας ΥΠΕΝ">Πλημμύρες ↗</a></div>`;
+}
+// Αντιγραφή «πλάτος, μήκος» (WGS84, δεκαδικές μοίρες με τελεία): η μορφή που δέχονται
+// Google Maps, Waze, Apple Maps και τα περισσότερα GPS στην αναζήτηση
+// Συγχρονισμένη αντιγραφή: ολοκληρώνεται αμέσως, όσο η σελίδα έχει ακόμη το focus
+// (απαραίτητο όταν αμέσως μετά ανοίγει νέα καρτέλα). readOnly: χωρίς πληκτρολόγιο στο κινητό.
+function copySync(txt) {
+  const ta = document.createElement('textarea'); ta.value = txt; ta.readOnly = true;
+  ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
+  document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, txt.length);
+  let ok = false; try { ok = document.execCommand('copy'); } catch {}
+  ta.remove(); return ok;
+}
+// Πρώτα συγχρονισμένα· αν ο browser δεν το επιτρέπει, με το Clipboard API
+async function copyText(txt) {
+  if (copySync(txt)) return true;
+  try { await navigator.clipboard.writeText(txt); return true; } catch { return false; }
+}
+const plotById = (id) => (CUR && (!id || CUR.id === id)) ? CUR : PLOTS.find(x => x.id === id);
+const coordText = (p) => { const q = posOf(p); return q && `${q.lat.toFixed(6)}, ${q.lng.toFixed(6)}`; };
+async function copyCoords(id) {
+  const txt = coordText(plotById(id));
+  if (!txt) return toast('Δεν έχει οριστεί θέση', 'err');
+  const ok = await copyText(txt);
+  toast(ok ? `Αντιγράφηκαν: ${txt} — επικολλήστε τις στην αναζήτηση του προγράμματος πλοήγησης` : `Συντεταγμένες: ${txt}`, ok ? 'ok' : '');
+}
+
+// Αντικειμενικές αξίες (valuemaps.gov.gr, ΑΑΔΕ/ΓΓΠΣΔΔ): ο σύνδεσμος δεν δέχεται θέση,
+// γι' αυτό ανοίγει η εφαρμογή και αντιγράφονται οι συντεταγμένες για την αναζήτησή της
+const VALUEMAPS = 'https://www.valuemaps.gov.gr/';
+function openValuemaps(id) {
+  const txt = coordText(plotById(id));
+  const copy = txt ? copyText(txt) : Promise.resolve(false);   // ΠΡΙΝ ανοίξει η νέα καρτέλα (copySync όσο η σελίδα έχει το focus)
+  window.open(VALUEMAPS, '_blank', 'noopener');
+  copy.then((ok) => toast(ok ? `Αντιγράφηκαν οι συντεταγμένες ${txt}: Ctrl+V στην αναζήτηση του valuemaps.gov.gr` : (txt ? `Συντεταγμένες για αναζήτηση: ${txt}` : 'Το οικόπεδο δεν έχει θέση'), ok ? 'ok' : ''));
+}
+// Ενιαίος Ψηφιακός Χάρτης ΤΕΕ (χρήσεις γης, όροι δόμησης): δέχεται κέντρο «μήκος,πλάτος» και level
+const teeUrl = (p) => { const q = posOf(p); return q && `https://sdigmap.tee.gov.gr/sdmquery/public/?center=${q.lng.toFixed(7)},${q.lat.toFixed(7)}&level=18`; };
+// Χάρτες κινδύνου πλημμύρας (ΥΠΕΝ): ο σύνδεσμος δέχεται κέντρο και zoom
+const floodsUrl = (p) => { const q = posOf(p); return q && `https://gis.floods.ypeka.gr/?lon=${q.lng.toFixed(7)}&lat=${q.lat.toFixed(7)}&zoom=16`; };
+async function openFromMap(id) { setView('plots'); await openPlot(id); }
+
+// Εξαγωγή CSV στη μορφή εισαγωγής του mySimpleGIS (Πινέζες σε ΕΓΣΑ'87)
+if (window.proj4) proj4.defs('EPSG:2100', '+proj=tmerc +lat_0=0 +lon_0=24 +k=0.9996 +x_0=500000 +y_0=0 +ellps=GRS80 +towgs84=-199.87,74.79,246.62,0,0,0,0 +units=m +no_defs');
+function exportMySimpleGIS() {
+  if (!window.proj4) return toast('Δεν φορτώθηκε η βιβλιοθήκη μετατροπής συντεταγμένων. Ανανεώστε τη σελίδα.', 'err');
+  const list = mapPlots();
+  if (!list.length) return toast('Δεν υπάρχουν οικόπεδα με θέση για εξαγωγή', 'err');
+  const q = (v) => '"' + String(v ?? '').replace(/[\r\n]+/g, ' | ').replace(/"/g, "'") + '"';
+  const lines = [
+    '"=== ΕΞΑΓΩΓΗ ΣΧΗΜΑΤΩΝ ==="',
+    '"Για πινέζες και circlemarkers: Σχήμα,Τίτλος,Σχόλια,Χρώμα,Χ,Υ"',
+    '',
+    "Σχήμα,Τίτλος,Σχόλια,Χρώμα,Πληροφορία,Συντεταγμένες Χ,Υ (ΕΓΣΑ'87)",
+  ];
+  let nPoi = 0;
+  for (const p of list) {
+    const [x, y] = proj4('EPSG:4326', 'EPSG:2100', [num(p.lng), num(p.lat)]);
+    const name = (p.code ? p.code + ' ' : '') + (p.title || '');
+    const comment = [
+      p.municipality, p.address,
+      num(p.area) !== null ? fmt(num(p.area)) + ' m²' : '',
+      num(p.price) !== null ? fmt(num(p.price), 0) + ' €' : '',
+      p.kaek ? 'ΚΑΕΚ ' + p.kaek : '',
+      p.ot ? 'Ο.Τ. ' + p.ot : '',
+      p.pol_enotita ? 'Π.Ε. ' + p.pol_enotita : '',
+      ({ rejected: 'Απορρίφθηκε (κριτήρια)', fail: 'Κριτήρια εκτός ορίων', ok: 'Κριτήρια OK' })[critStatus(p)] || '',
+      p.rejections && p.rejections.length ? 'ΑΠΟΡΡΙΨΗ: ' + p.rejections.join('/') : '',
+      p.units ? unitsLabel(p.units) : '',
+      contactText(p),
+    ].filter(Boolean).join(' · ');
+    lines.push(['Πινέζα', q(name), q(comment), q(plotColor(p)), q('-'), q(x.toFixed(2) + ',' + y.toFixed(2))].join(','));
+    for (const mk of plotPois(p)) {
+      const [mx, my] = proj4('EPSG:4326', 'EPSG:2100', [mk.lng, mk.lat]);
+      const d = poiDist(mk, p);
+      lines.push(['Πινέζα', q(mk.label || 'Σημείο'), q(`Σημείο οικοπέδου ${p.code || p.title || ''}${d ? ' · ' + d + ' από το οικόπεδο' : ''}`), q(mk.color), q('-'), q(mx.toFixed(2) + ',' + my.toFixed(2))].join(','));
+      nPoi++;
+    }
+  }
+  // \ufeff (BOM): το Excel και το mySimpleGIS αναγνωρίζουν σωστά τα ελληνικά (UTF-8)
+  downloadBlob(new Blob(['\ufeff' + lines.join('\r\n') + '\r\n'], { type: 'text/csv;charset=utf-8;' }), 'plotmanager_' + fileSlug() + todayLocal() + '.csv');
+  toast(`${list.length === 1 && !nPoi ? 'Εξήχθη' : 'Εξήχθησαν'} ${nOf(list.length, 'οικόπεδο', 'οικόπεδα')}${nPoi ? ` και ${nOf(nPoi, 'σημείο', 'σημεία')}` : ''}`, 'ok');
+}
+
+// Άνοιγμα maps.ktimatologio.gr κεντραρισμένου στο οικόπεδο.
+// Ο χάρτης (ArcGIS Experience Builder) δέχεται στο #hash: center:X,Y,102100 (Web Mercator) και level (zoom).
+// Η επιλογή του γεωτεμαχίου γίνεται με αναζήτηση ΚΑΕΚ, γι' αυτό αντιγράφουμε και το ΚΑΕΚ.
+const KTIMA_MAPS = 'https://maps.ktimatologio.gr/?locale=el';
+const KTIMA_LEVEL = 19;
+function ktimaUrl(p) {
+  const lat = num(p.lat), lng = num(p.lng);
+  if (lat === null || lng === null) return KTIMA_MAPS;
+  const R = 6378137, x = R * lng * Math.PI / 180, y = R * Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360));
+  return `${KTIMA_MAPS}#widget_6=active_datasource_id:dataSource_1,center:${x.toFixed(2)}%2C${y.toFixed(2)}%2C102100,level:${KTIMA_LEVEL}`;
+}
+function openKtimatologio(id) {
+  const p = plotById(id);
+  if (!p) return;
+  const kaek = p.kaek && String(p.kaek).trim(), centered = num(p.lat) !== null && num(p.lng) !== null;
+  // η αντιγραφή γίνεται ΠΡΙΝ ανοίξει η νέα καρτέλα, όσο η σελίδα έχει ακόμη το focus
+  const copy = kaek ? copyText(kaek) : Promise.resolve(false);
+  window.open(ktimaUrl(p), '_blank', 'noopener');
+  const where = centered ? 'Ο χάρτης ανοίγει κεντραρισμένος στο οικόπεδο.' : 'Το οικόπεδο δεν έχει θέση· ο χάρτης ανοίγει χωρίς κεντράρισμα.';
+  if (!kaek) return toast(where, centered ? 'ok' : '');
+  copy.then((ok) => ok ? toast(`${where} Αντιγράφηκε το ΚΑΕΚ ${kaek}: Ctrl+V στην αναζήτηση για επιλογή του γεωτεμαχίου.`, 'ok')
+                       : toast(`${where} ΚΑΕΚ για αναζήτηση: ${kaek}`));
+}
+
+// Google Earth (web): σκέτη αναζήτηση συντεταγμένων → το Earth πετά εκεί και βάζει πινέζα.
+// (Με θέση κάμερας «/@…» στο τέλος, το Earth επαναφέρει μόνο την κάμερα και δεν βάζει πινέζα.)
+// Η 3D όψη: shift + σύρσιμο, ή το κουμπί 3D κάτω δεξιά στο Earth.
+// Η λοξή όψη με κάμερα χρησιμοποιείται στο KML (exportPlotEarthKml).
+const EARTH_VIEW = { range: 800, tilt: 55, heading: 0 };
+const earthUrl = (p) => { const q = posOf(p); return q && `https://earth.google.com/web/search/${q.lat.toFixed(7)},${q.lng.toFixed(7)}`; };
+
+// ---- KML: κοινά βοηθήματα ----
+const kx = esc;                                       // XML/KML: ίδια διαφυγή με το HTML
+const kmlColor = (hex) => { const h = hex.replace('#', ''); return 'ff' + h.slice(4, 6) + h.slice(2, 4) + h.slice(0, 2); };  // aabbggrr
+// στυλ οικοπέδου (s…) και σημείου (m…): η ετικέτα (name) φαίνεται πάντα στο Google Earth
+const kmlStyles = (plotCols, poiCols) => [...new Set(plotCols)].map((c) => `
+    <Style id="s${c.slice(1)}"><IconStyle><color>${kmlColor(c)}</color><scale>1.1</scale>
+      <Icon><href>https://maps.google.com/mapfiles/kml/paddle/wht-blank.png</href></Icon><hotSpot x="0.5" y="0" xunits="fraction" yunits="fraction"/></IconStyle>
+      <LabelStyle><scale>0.8</scale></LabelStyle></Style>`).join('') + [...new Set(poiCols)].map((c) => `
+    <Style id="m${c.slice(1)}"><IconStyle><color>${kmlColor(c)}</color><scale>0.9</scale>
+      <Icon><href>https://maps.google.com/mapfiles/kml/pushpin/wht-pushpin.png</href></Icon><hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/></IconStyle>
+      <LabelStyle><scale>0.85</scale></LabelStyle></Style>`).join('');
+function kmlPoiFolder(p) {
+  const pois = plotPois(p);
+  if (!pois.length) return '';
+  return `
+      <Folder><name>${kx('Σημεία ' + ([p.code, p.title].filter(Boolean).join(' ') || ''))}</name>${pois.map((mk) => {
+        const d = poiDist(mk, p);
+        return `
+        <Placemark><name>${kx(mk.label || 'Σημείο')}</name>${d ? `<description>${kx(d + ' από το οικόπεδο')}</description>` : ''}<styleUrl>#m${mk.color.slice(1)}</styleUrl>
+          <Point><coordinates>${mk.lng},${mk.lat},0</coordinates></Point></Placemark>`; }).join('')}
+      </Folder>`;
+}
+const downloadKml = (kml, name) => downloadBlob(new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' }), name);
+
+// Google Earth 3D με το οικόπεδο ΚΑΙ τα σημεία του: το Earth web δέχεται μόνο μία πινέζα στο URL,
+// οπότε κατεβάζουμε KML με λοξή 3D κάμερα (LookAt) που ανοίγει στο Google Earth Pro ή εισάγεται στο Earth web.
+function exportPlotEarthKml() {
+  const p = CUR; if (!p) return;
+  const lat = num(p.lat), lng = num(p.lng);
+  if (lat === null || lng === null) return toast('Ορίστε πρώτα θέση οικοπέδου', 'err');
+  const pois = plotPois(p);
+  const pts = [[lat, lng], ...pois.map(mk => [mk.lat, mk.lng])];
+  const la = pts.map(q => q[0]), ln = pts.map(q => q[1]);
+  const cLat = (Math.min(...la) + Math.max(...la)) / 2, cLng = (Math.min(...ln) + Math.max(...ln)) / 2;
+  const span = Math.max(RULER ? RULER.distance(L.latLng(Math.min(...la), Math.min(...ln)), L.latLng(Math.max(...la), Math.max(...ln))) : 0, 1);
+  const range = Math.round(Math.min(Math.max(span * 2.2, EARTH_VIEW.range), 30000));
+  const name = [p.code, p.title].filter(Boolean).join(' ') || 'Οικόπεδο';
+  const desc = [p.municipality, p.address, num(p.area) !== null ? fmt(num(p.area)) + ' m²' : '', p.kaek ? 'ΚΑΕΚ ' + p.kaek : ''].filter(Boolean).join(' · ');
+  const kml = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>${kx('PlotManager – ' + name)}</name>
+    <LookAt><longitude>${cLng.toFixed(7)}</longitude><latitude>${cLat.toFixed(7)}</latitude><altitude>0</altitude>
+      <heading>${EARTH_VIEW.heading}</heading><tilt>${EARTH_VIEW.tilt}</tilt><range>${range}</range><altitudeMode>relativeToGround</altitudeMode></LookAt>${kmlStyles([plotColor(p)], pois.map(mk => mk.color))}
+    <Placemark><name>${kx(name)}</name>${desc ? `<description>${kx(desc)}</description>` : ''}
+      <styleUrl>#s${plotColor(p).slice(1)}</styleUrl><Point><coordinates>${lng},${lat},0</coordinates></Point></Placemark>${kmlPoiFolder(p)}
+  </Document>
+</kml>
+`;
+  // όνομα αρχείου μόνο με λατινικούς χαρακτήρες (κάποια προγράμματα σκαλώνουν σε ελληνικά ονόματα αρχείων)
+  const GR = 'αάβγδεέζηήθιίϊΐκλμνξοόπρσςτυύϋΰφχψωώ', LT = ['a','a','v','g','d','e','e','z','i','i','th','i','i','i','i','k','l','m','n','x','o','o','p','r','s','s','t','y','y','y','y','f','ch','ps','o','o'];
+  const slug = String(p.code || '').toLowerCase().split('').map(c => { const i = GR.indexOf(c); return i >= 0 ? LT[i] : c; }).join('').replace(/[^a-z0-9_-]+/g, '_').replace(/^_+|_+$/g, '');
+  downloadKml(kml, 'plotmanager_3d_' + (slug || String(p.id).slice(0, 8)) + '.kml');
+  toast(`Κατέβηκε KML με το οικόπεδο${pois.length ? ` και ${nOf(pois.length, 'σημείο', 'σημεία')}` : ''}${DIRTY ? ' (περιλαμβάνει μη αποθηκευμένες αλλαγές)' : ''}. Άνοιγμα: Google Earth Pro → File → Open, ή earth.google.com → Έργα → Νέο → Εισαγωγή αρχείου KML`, DIRTY ? '' : 'ok');
+}
+
+// Εξαγωγή KML (Google Earth, QGIS, mySimpleGIS): ένα Placemark ανά οικόπεδο, φάκελοι ανά φάση, και τα σημεία του
+function exportKML() {
+  const list = mapPlots();
+  if (!list.length) return toast('Δεν υπάρχουν οικόπεδα με θέση για εξαγωγή', 'err');
+  const x = kx;
+  const cdata = (v) => '<![CDATA[' + String(v).replace(/]]>/g, ']]]]><![CDATA[>') + ']]>';
+  const proj = curProj();
+  const styles = kmlStyles(list.map(plotColor), list.flatMap(p => plotPois(p).map(mk => mk.color)));
+  const placemark = (p) => {
+    const e = critEval(p), sc = partBData(p).s;
+    const rows = [
+      ['Φάση', phaseLabel(phaseOf(p))],
+      ['Περιοχή', [p.municipality, p.address].filter(Boolean).join(' — ')],
+      ['Εμβαδόν', num(p.area) !== null ? fmt(num(p.area)) + ' m²' : ''],
+      ['Τιμή', num(p.price) !== null ? fmt(num(p.price), 0) + ' €' : ''],
+      ['ΚΑΕΚ', p.kaek], ['Ο.Τ.', p.ot], ['Πολεοδομική Ενότητα', p.pol_enotita], ['ΥΔΟΜ', p.ydom],
+      ['Κριτήρια σύμβασης', e.all === null ? '' : (e.all ? 'ΝΑΙ' : 'ΟΧΙ') + (e.prelim ? ' (προκαταρκτικά)' : '')],
+      [cap(BT().pl), p.units ? unitsLabel(p.units) : ''],
+      ['Βαθμολογία', sc === null ? '' : fmt(sc, 2) + ' / 10' + (scorePartial(p) ? ` (μερική: ${scoreCount(p)}/${SCORE_CRITERIA.length})` : '')],   // μόνο Φάση Β/ολοκληρωμένα
+      ['ΕΓΚΡΙΣΗ', (p.approvals || []).join(', ')], ['ΑΠΟΡΡΙΨΗ', (p.rejections || []).join(', ')],
+      ['Υπεύθυνος', contactText(p)],
+    ].filter(([, v]) => v);
+    // το «; » πριν το <br> κρατά τις γραμμές χωριστές και όταν κάποιο πρόγραμμα αφαιρεί τα HTML tags
+    const desc = rows.map(([k, v]) => `<b>${x(k)}:</b> ${x(v)}; <br>`).join('');
+    const data = { code: p.code, title: p.title, phase: phaseLabel(phaseOf(p)), area_m2: num(p.area), price_eur: num(p.price),
+      kaek: p.kaek, ot: p.ot, pol_enotita: p.pol_enotita, ydom: p.ydom, municipality: p.municipality, score: sc === null ? '' : +sc.toFixed(2) };
+    return `
+      <Placemark><name>${x([p.code, p.title].filter(Boolean).join(' '))}</name>
+        <description>${cdata(desc)}</description><styleUrl>#s${plotColor(p).slice(1)}</styleUrl>
+        <ExtendedData>${Object.entries(data).filter(([, v]) => v !== null && v !== undefined && v !== '').map(([k, v]) => `<Data name="${k}"><value>${x(v)}</value></Data>`).join('')}</ExtendedData>
+        <Point><coordinates>${num(p.lng)},${num(p.lat)},0</coordinates></Point></Placemark>${kmlPoiFolder(p)}`;
+  };
+  const folders = PHASES.map(([ph, label]) => {
+    const items = list.filter((p) => phaseOf(p) === ph);
+    return items.length ? `\n    <Folder><name>${x(label)} (${items.length})</name>${items.map(placemark).join('')}\n    </Folder>` : '';
+  }).join('');
+  const kml = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>${x('PlotManager' + (proj ? ' – ' + proj.name : ''))}</name>
+    <description>${x((proj && proj.client ? 'Πελάτης: ' + proj.client + ' · ' : '') + 'Εξαγωγή ' + fmtDate(todayLocal()))}</description>${styles}${folders}
+  </Document>
+</kml>
+`;
+  downloadKml(kml, 'plotmanager_' + fileSlug() + todayLocal() + '.kml');
+  const nPoi = list.reduce((n, p) => n + plotPois(p).length, 0);
+  toast(`${list.length === 1 && !nPoi ? 'Εξήχθη' : 'Εξήχθησαν'} ${nOf(list.length, 'οικόπεδο', 'οικόπεδα')}${nPoi ? ` και ${nOf(nPoi, 'σημείο', 'σημεία')}` : ''} σε KML`, 'ok');
+}
+
+// ===================== ΣΥΓΚΡΙΤΙΚΟΣ ΠΙΝΑΚΑΣ (Ε.2) =====================
+const CMP_COLS = [
+  { h: 'Κωδικός', v: p => p.code || '', w: 9 },
+  { h: 'Τίτλος', v: p => p.title || '', w: 28 },
+  { h: 'Περιοχή', v: p => p.municipality || '', w: 18 },
+  { h: 'Πολ. Ενότητα', v: p => p.pol_enotita || '', w: 14 },
+  { h: 'ΥΔΟΜ', v: p => p.ydom || '', w: 18 },
+  { h: 'Ο.Τ.', v: p => p.ot || '', w: 8 },
+  { h: 'ΚΑΕΚ', v: p => p.kaek || '', w: 15 },
+  { h: 'Πράξη Εφαρμογής', v: p => [p.pe_number, p.pe_date ? fmtDate(p.pe_date) : ''].filter(Boolean).join(' / '), w: 18 },
+  { h: 'Φάση', v: p => phaseLabel(phaseOf(p)), w: 16 },
+  { h: 'Εμβαδόν (m²)', v: p => num(p.area), d: 1 },
+  { h: 'Τιμή (€)', v: p => num(p.price), d: 0 },
+  { h: '€/m² οικοπέδου', v: p => num(p.price) !== null && num(p.area) ? num(p.price) / num(p.area) : null, d: 0 },
+  { h: 'Σ.Δ.', v: p => num(p.sd), d: 2 },
+  { h: 'Κάλυψη (%)', v: p => num(p.coverage), d: 0 },
+  { h: 'Αξιοπ. δόμηση (m²)', v: (p, x) => x.c.usable, d: 1 },
+  { get h() { return `${cap(BT().pl)} (εκτίμηση)`; }, v: p => p.units ? unitsLabel(p.units) : '' },
+  { get h() { return `Χωρούν ${BT().pl} ≥${CFG.contract.house_min_m2} m² καθ.`; }, v: (p, x) => x.c.housesFit, d: 0 },
+  { h: 'Απόσταση κέντρο (km)', v: (p, x) => x.k.dc, d: 2 },
+  { h: 'Απόσταση θάλασσα (km)', v: (p, x) => x.k.ds, d: 2 },
+  { h: 'Πλάτος οδού (m)', v: (p, x) => x.k.rw, d: 1 },
+  { h: 'Κριτήρια σύμβασης', v: (p, x) => x.k.all === null ? '' : (x.k.all ? 'ΝΑΙ' : 'ΟΧΙ') + (x.k.prelim ? '*' : '') },
+  { h: 'Γ.3 προβλήματα', v: (p, x) => x.cs.problem, d: 0 },
+  { h: '€/m² δομήσιμου', v: (p, x) => x.e.ppb, d: 0 },
+  { h: 'Συνολικό κόστος (€)', v: (p, x) => x.e.total, d: 0 },
+  { h: 'Αξία πώλησης (€)', v: (p, x) => x.e.value, d: 0 },
+  { h: 'Περιθώριο (%)', v: (p, x) => x.e.marginPct, d: 1 },
+  { h: 'Βαθμολογία /10', v: (p, x) => x.s, d: 2 },
+  { h: 'Βαθμολογημένα κριτήρια', v: (p, x) => x.s === null ? '' : `${x.n}/${SCORE_CRITERIA.length}` },
+  { h: 'Εγκρίσεις', v: p => (p.approvals || []).length, d: 0 },
+  { h: 'Απορρίψεις', v: p => (p.rejections || []).length, d: 0 },
+  { h: 'Ώρες Φάσης Α', v: (p, x) => x.t.A.h, d: 1, admin: true },
+  { h: 'Ώρες Φάσης Β', v: (p, x) => x.t.B.h, d: 1, admin: true },
+];
+// Οι στήλες ωρών φαίνονται στον διαχειριστή· στο Excel (παραδοτέο Ε.2) μπαίνουν μόνο αν τσεκαριστεί ρητά
+const cmpCols = (forExcel) => CMP_COLS.filter(c => !c.admin || (isAdmin() && (!forExcel || ($('cmpHours') && $('cmpHours').checked))));
+// Στοιχεία Φάσης Β (Γ.3, οικονομοτεχνικά, βαθμολογία): όπως στην Αναφορά, φαίνονται μόνο όταν το οικόπεδο
+// είναι σε Φάση Β ή ολοκληρώθηκε (μετά την έγκριση της Φάσης Α από τον πελάτη)
+const NO_B = { cs: { problem: null }, e: { ppb: null, total: null, value: null, marginPct: null }, s: null, n: 0 };
+const partBData = (p) => partBOpen(p) ? { cs: checksSummary(p), e: econCalc(p), s: scoreTotal(p), n: scoreCount(p) } : NO_B;
+function cmpRows() {
+  const withRej = $('cmpRej') ? $('cmpRej').checked : false;
+  return PLOTS.filter(p => withRej || !isRejected(p))
+    .map(p => ({ p, x: { c: calcTerms(p), k: critEval(p), t: taskStats(p), ...partBData(p) } }))
+    // πρώτα όσα έχουν πλήρη βαθμολογία (όλα τα κριτήρια), μετά οι μερικές, μετά χωρίς βαθμολογία
+    .sort((a, b) => (b.x.n === SCORE_CRITERIA.length) - (a.x.n === SCORE_CRITERIA.length) || (b.x.s ?? -1) - (a.x.s ?? -1)
+      || String(a.p.code || '').localeCompare(String(b.p.code || ''), 'el', { numeric: true }));
+}
+async function renderCompare(reload) {
+  if (reload) { try { await loadPlots(); } catch (e) { toast(e.message, 'err'); } }
+  const withRej = $('cmpRej') ? $('cmpRej').checked : false;
+  const cols = cmpCols(), rows = cmpRows();
+  $('compare').innerHTML = `
+    <div class="cmp-bar"><h2>Συγκριτικός Πίνακας${curProj() ? ' · ' + esc(curProj().name) : ''} <span class="note">(${rows.length})</span></h2>
+      <label class="chk"><input type="checkbox" id="cmpRej" ${withRej ? 'checked' : ''} onchange="renderCompare(false)"><span>Με τα απορριφθέντα</span></label>
+      ${isAdmin() ? `<label class="chk" title="Για εσωτερική χρήση· το Excel του παραδοτέου δεν πρέπει να έχει ώρες"><input type="checkbox" id="cmpHours" ${$('cmpHours') && $('cmpHours').checked ? 'checked' : ''}><span>Ώρες στο Excel</span></label>` : ''}
+      <button class="btn primary sm" onclick="exportExcel()">⬇ Excel</button></div>
+    ${rows.length ? `<table class="cmp"><thead><tr>${cols.map(c => `<th>${esc(c.h)}</th>`).join('')}</tr></thead><tbody>
+    ${rows.map(({ p, x }) => `<tr class="${isRejected(p) ? 'rj' : ''}" onclick="openFromMap('${p.id}')">${cols.map(c => {
+      const v = c.v(p, x);
+      if (c.d !== undefined) return `<td class="n">${v === null || v === undefined ? '—' : fmt(v, c.d)}</td>`;
+      if (c.h === 'Φάση') return `<td>${phaseBadge(p)}</td>`;
+      if (c.h === 'Βαθμολογημένα κριτήρια') return `<td class="n${x.n && x.n < SCORE_CRITERIA.length ? ' warn' : ''}">${esc(v) || '—'}</td>`;
+      if (c.h === 'Κριτήρια σύμβασης') { const st = v.startsWith('ΝΑΙ') ? '<span class="ok">✓ ναι</span>' : v.startsWith('ΟΧΙ') ? '<span class="bad">✗ όχι</span>' : '—'; return `<td title="${v.endsWith('*') ? 'με προκαταρκτικές τιμές Α.2' : ''}">${st}${v.endsWith('*') ? '*' : ''}</td>`; }
+      return `<td>${esc(v)}</td>`;
+    }).join('')}</tr>`).join('')}</tbody></table>
+    <div class="note" style="margin-top:8px">* κριτήρια με προκαταρκτικές τιμές του πρώτου ελέγχου (Α.2). Τα στοιχεία της Φάσης Β (Γ.3, οικονομοτεχνικά, βαθμολογία) εμφανίζονται μόνο για οικόπεδα σε Φάση Β ή ολοκληρωμένα. Ταξινόμηση κατά βαθμολογία: πρώτα όσα έχουν βαθμό σε όλα τα κριτήρια, μετά όσα έχουν μερική βαθμολογία. Πατήστε μια γραμμή για να ανοίξει ο φάκελος.${isAdmin() ? ' Οι στήλες ωρών εμφανίζονται μόνο στον διαχειριστή.' : ''}</div>`
+    : '<div class="empty">Δεν υπάρχουν οικόπεδα</div>'}`;
+}
+function loadScript(src) {
+  return new Promise((res, rej) => {
+    const s = document.createElement('script'); s.src = src; s.onload = res;
+    s.onerror = () => rej(new Error('Δεν φορτώθηκε η βιβλιοθήκη Excel')); document.head.appendChild(s);
+  });
+}
+async function exportExcel() {
+  try {
+    if (!window.XLSX) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+    const cols = cmpCols(true), rows = cmpRows();
+    if (!rows.length) return toast('Δεν υπάρχουν οικόπεδα για εξαγωγή', 'err');
+    const data = [cols.map(c => c.h), ...rows.map(({ p, x }) => cols.map(c => {
+      const v = c.v(p, x);
+      if (v === null || v === undefined || (typeof v === 'number' && !Number.isFinite(v))) return '';
+      return typeof v === 'number' && c.d !== undefined ? Math.round(v * 10 ** c.d) / 10 ** c.d : v;
+    }))];
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!cols'] = cols.map(c => ({ wch: c.w || Math.max(12, c.h.length + 2) }));
+    ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: data.length - 1, c: cols.length - 1 } }) };
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Συγκριτικός Πίνακας');
+    XLSX.writeFile(wb, 'plotmanager_' + fileSlug() + 'sygkritikos_' + todayLocal() + '.xlsx');
+    toast(`${rows.length === 1 ? 'Εξήχθη' : 'Εξήχθησαν'} ${nOf(rows.length, 'οικόπεδο', 'οικόπεδα')}`, 'ok');
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+// ===================== ΛΙΣΤΑ ΟΙΚΟΠΕΔΩΝ =====================
+async function loadPlots() {
+  const pid = PROJ;
+  const list = pid ? await api('plots?project=' + encodeURIComponent(pid)) : [];
+  if (pid === PROJ) PLOTS = list;          // αν στο μεταξύ άλλαξε έργο, αγνοούμε την παλιά απάντηση
+}
+
+function plotBadges(p) {
+  const b = [phaseBadge(p)];
+  if (critStatus(p)) b.push(CRIT_BADGE[critStatus(p)]);
+  if (p.rejections && p.rejections.length) b.push(`<span class="bdg o" title="${esc(p.rejections.join(', '))}">ΑΠΟΡΡΙΨΗ ×${p.rejections.length}</span>`);
+  if (p.approvals && p.approvals.length) b.push(`<span class="bdg p" title="${esc(p.approvals.join(', '))}">ΕΓΚΡΙΣΗ ×${p.approvals.length}</span>`);
+  if (p.units) b.push(`<span class="bdg b">${esc(unitsLabel(p.units))}</span>`);
+  // Γ.3 και βαθμολογία: ο διαχειριστής τα βλέπει πάντα (εργασία)· ο πελάτης μόνο σε Φάση Β/ολοκληρωμένα
+  const { cs, s: sc } = isAdmin() ? { cs: checksSummary(p), s: scoreTotal(p) } : partBData(p);
+  if (cs.problem) b.push(`<span class="bdg r">⚠ ${cs.problem} πρόβλ. Γ.3</span>`);
+  if (sc !== null) b.push(`<span class="bdg" title="${scorePartial(p) ? `Μερική βαθμολογία (${scoreCount(p)}/${SCORE_CRITERIA.length} κριτήρια)` : 'Σταθμισμένη βαθμολογία'}">★ ${fmt(sc, 1)}${scorePartial(p) ? '*' : ''}</span>`);
+  if (p.remarks_count) b.push(`<span class="bdg">💬 ${p.remarks_count}</span>`);
+  if (p.links_count) b.push(`<span class="bdg">📎 ${p.links_count}</span>`);
+  if (p.my_rejected) b.push('<span class="bdg r">η ψήφος μου: ΑΠΟΡΡΙΨΗ</span>');
+  if (p.my_approved) b.push('<span class="bdg p">η ψήφος μου: ΕΓΚΡΙΣΗ</span>');
+  return b.join('');
+}
+// σύγκριση χωρίς τόνους/διαλυτικά και κεφαλαία, με ς = σ («παλληνη» βρίσκει «Παλλήνη»)
+const fold = (v) => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/ς/g, 'σ');
+function filteredPlots() {
+  // κάθε λέξη της αναζήτησης πρέπει να υπάρχει σε κάποιο πεδίο (π.χ. «υδομ παλλ» βρίσκει «ΥΔΟΜ Δήμου Παλλήνης»)
+  const words = fold(SEARCH).split(/\s+/).filter(Boolean);
+  return PLOTS.filter(p => {
+    const rejected = isRejected(p);
+    if (FILTER === 'active' && rejected) return false;
+    if (FILTER === 'rejected' && !rejected) return false;
+    if (FILTER === 'B' && !['B', 'done'].includes(phaseOf(p))) return false;
+    if (!words.length) return true;
+    const hay = [p.code, p.title, p.address, p.municipality, p.kaek, p.ot, p.pol_enotita, p.ydom, p.pe_number, p.contact_name].map(fold).join(' | ');
+    return words.every(w => hay.includes(w));
+  });
+}
+function renderList() {
+  CUR = null; DIRTY = false; PICK = false; $('map').classList.remove('picking'); drawPoi();
+  if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
+  const chips = [['all', 'Όλα'], ['active', 'Ενεργά'], ['B', 'Φάση Β'], ['rejected', 'Απορριφθέντα']]
+    .map(([k, t]) => `<button class="chip ${FILTER === k ? 'on' : ''}" onclick="FILTER='${k}';renderList()">${t}</button>`).join('');
+  $('panel').innerHTML = `
+    <div class="ph"><h2>Επιλογή Οικοπέδων <span class="note">(${PLOTS.length})</span></h2>
+      ${isAdmin() && PROJ ? '<button class="btn primary sm" onclick="newPlot()">+ Νέο οικόπεδο</button>' : ''}
+      <button class="btn sm" title="Ανανέωση" onclick="refreshList()">⟳</button></div>
+    <div class="filters"><input type="text" placeholder="Αναζήτηση (τίτλος, περιοχή, ΚΑΕΚ, Ο.Τ.…)" value="${esc(SEARCH)}" oninput="SEARCH=this.value;renderListItems()">${chips}</div>
+    <div class="pbody" id="listBody"></div>`;
+  renderListItems();
+  fitAll();
+}
+function renderListItems() {
+  const list = filteredPlots();
+  if (!CUR) renderMarkers();
+  $('listBody').innerHTML = list.length ? list.map(p => `
+    <div class="folder" onclick="openPlot('${p.id}')">
+      <div class="ico">${isRejected(p) ? '🗂️' : '📁'}</div>
+      <div style="flex:1;min-width:0">
+        <div class="t">${p.code ? esc(p.code) + ' · ' : ''}${esc(p.title || 'Χωρίς τίτλο')}</div>
+        <div class="s">${esc([p.municipality, p.address].filter(Boolean).join(' — '))}</div>
+        <div class="s">${num(p.area) !== null ? fmt(num(p.area)) + ' m²' : ''}${num(p.price) !== null ? ' · ' + fmt(num(p.price), 0) + ' €' : ''}${num(p.lat) === null ? ' · <span style="color:var(--orange)">χωρίς θέση</span>' : ''}</div>
+        <div class="badges">${plotBadges(p)}</div>
+      </div>
+    </div>`).join('') : `<div class="empty">${!PROJ ? (isAdmin() ? 'Δεν υπάρχει έργο.<br>Δημιουργήστε ένα από το «⚙ Έργα».' : 'Δεν έχετε πρόσβαση σε κανένα έργο.<br>Επικοινωνήστε με τον διαχειριστή.') : PLOTS.length ? 'Κανένα αποτέλεσμα' : (isAdmin() ? 'Δεν υπάρχουν οικόπεδα σε αυτό το έργο.<br>Πατήστε «+ Νέο οικόπεδο».' : 'Δεν υπάρχουν οικόπεδα ακόμη.')}</div>`;
+}
+async function refreshList() { try { await loadPlots(); renderList(); } catch (e) { toast(e.message, 'err'); } }
+
+async function newPlot() {
+  try {
+    const n = PLOTS.reduce((m, p) => { const x = /(\d+)\s*$/.exec(p.code || ''); return x ? Math.max(m, +x[1]) : m; }, 0) + 1;
+    if (!PROJ) return toast('Δημιουργήστε πρώτα ένα έργο (⚙ Έργα)', 'err');
+    const p = await api('plots', { method: 'POST', body: { project: PROJ, code: 'Ο-' + String(n).padStart(2, '0'), title: 'Νέο οικόπεδο' } });
+    await loadPlots(); await openPlot(p.id); if (CUR && CUR.id === p.id) setTab('info');
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+// ===================== ΛΕΠΤΟΜΕΡΕΙΕΣ ΟΙΚΟΠΕΔΟΥ =====================
+let OPEN_SEQ = 0;
+async function openPlot(id) {
+  if (DIRTY && !confirm('Υπάρχουν μη αποθηκευμένες αλλαγές. Να απορριφθούν;')) return;
+  const seq = ++OPEN_SEQ;
+  try {
+    const d = await api('plots/' + id);
+    if (seq !== OPEN_SEQ) return;          // πατήθηκε στο μεταξύ άλλο οικόπεδο
+    CUR = d.plot; CUR_REVIEWS = d.reviews || []; DIRTY = false; PICK = false; $('map').classList.remove('picking');
+    CUR.phase = CUR.phase || 'A'; CUR.tasks = CUR.tasks || {}; CUR.checks = CUR.checks || {}; CUR.scores = CUR.scores || {};
+    CUR.markers = Array.isArray(CUR.markers) ? CUR.markers : [];
+    if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
+    renderDetail();
+    renderMarkers();
+    const lat = num(CUR.lat), lng = num(CUR.lng);
+    const pts = (CUR.markers || []).map(mk => [mk.lat, mk.lng]); if (lat !== null && lng !== null) pts.push([lat, lng]);
+    if (pts.length > 1) map.fitBounds(pts, { padding: [50, 50], maxZoom: 18 });
+    else if (lat !== null && lng !== null) map.setView([lat, lng], Math.max(map.getZoom(), 17));
+  } catch (e) { toast(e.message, 'err'); }
+}
+function backToList() {
+  if (DIRTY && !confirm('Υπάρχουν μη αποθηκευμένες αλλαγές. Να απορριφθούν;')) return;
+  DIRTY = false; renderList();
+}
+const TABS = [
+  ['info', 'Στοιχεία'], ['crit', 'Κριτήρια'], ['terms', 'Όροι δόμησης'], ['tasks', 'Εργασίες'],
+  ['tech', 'Τεχνικός έλεγχος'], ['econ', 'Οικονομικά'],
+  ['diary', 'Ημερολόγιο'], ['files', 'Αρχεία'], ['review', 'Παρατηρήσεις'],
+];
+const FORM_TABS = ['info', 'crit', 'terms', 'tasks', 'tech', 'econ'];
+function renderDetail() {
+  const tabs = TABS.map(([k, t]) => {
+    let c = '';
+    if (k === 'diary' && CUR.events?.length) c = CUR.events.length;
+    if (k === 'files' && CUR.links?.length) c = CUR.links.length;
+    if (k === 'review') { const n = CUR_REVIEWS.filter(r => !r.foreign).length; if (n) c = n; }
+    if (k === 'tasks') { const ts = taskStats(CUR); c = `${ts.A.d + ts.B.d}/${ts.A.n + ts.B.n}`; }
+    if (k === 'tech') { const cs = isAdmin() ? checksSummary(CUR) : partBData(CUR).cs; if (cs.problem) c = '⚠' + cs.problem; }
+    return `<button class="tab ${TAB === k ? 'active' : ''}" onclick="setTab('${k}')">${t}${c ? `<span class="cnt">${c}</span>` : ''}</button>`;
+  }).join('');
+  $('panel').innerHTML = `
+    <div class="ph"><button class="btn sm" onclick="backToList()">← Οικόπεδα</button>
+      <h2>📁 ${CUR.code ? esc(CUR.code) + ' · ' : ''}${esc(CUR.title || '')}</h2>${phaseBadge(CUR)}
+      <button class="btn sm" onclick="printReport()" title="Εκτύπωση Αναφοράς">🖨<span class="lbl"> Εκτύπωση Αναφοράς</span></button></div>
+    <div class="tabs">${tabs}</div>
+    <div class="pbody" id="tabBody"></div>
+    <div class="pfoot ${isAdmin() && FORM_TABS.includes(TAB) ? '' : 'hidden'}" id="saveBar">
+      <button class="btn success" onclick="savePlot()">Αποθήκευση</button>
+      <span class="dirty ${DIRTY ? '' : 'hidden'}" id="dirtyTag">● μη αποθηκευμένες αλλαγές</span>
+      <span class="spacer"></span>
+      <span class="note">Ενημ.: ${fmtDT(CUR.updated)}</span>
+    </div>`;
+  renderTab();
+  drawPoi();
+}
+function setTab(t) {
+  // ένα άκυρο πεδίο δεν έχει περάσει στα δεδομένα· αν αλλάξει η καρτέλα θα χανόταν σιωπηλά
+  if (document.querySelector('#tabBody input.invalid')) return toast('Διορθώστε πρώτα τα πεδία με κόκκινο περίγραμμα.', 'err');
+  TAB = t; renderDetail();
+}
+function markDirty() { DIRTY = true; const d = $('dirtyTag'); if (d) d.classList.remove('hidden'); }
+
+// --- πεδία φόρμας (ο απλός χρήστης τα βλέπει μόνο) ---
+function F(label, key, type = 'text', o = {}) {
+  const v = getPath(CUR, key), dis = (isAdmin() && !o.locked) ? '' : 'disabled', cls = o.full ? 'full' : '';
+  if (type === 'textarea') return `<label class="fld ${cls || 'full'}"><span>${label}</span><textarea data-k="${key}" rows="${o.rows || 3}" ${dis}>${esc(v ?? '')}</textarea></label>`;
+  if (type === 'check') return `<label class="chk ${o.red ? 'red' : ''} ${cls}"><input type="checkbox" data-k="${key}" ${v ? 'checked' : ''} ${dis}><span>${label}</span></label>`;
+  if (type === 'select') return `<label class="fld ${cls}"><span>${label}</span><select data-k="${key}" ${dis}>${o.options.map(([val, t]) => `<option value="${val}" ${String(v ?? '') === val ? 'selected' : ''}>${t}</option>`).join('')}</select></label>`;
+  if (type === 'num') {
+    const shown = v === null || v === undefined ? '' : (o.dot ? String(v) : String(v).replace('.', ','));
+    return `<label class="fld ${cls}"><span>${label}</span><input type="text" inputmode="decimal" data-k="${key}" data-num="1" ${o.dot ? 'data-coord="1"' : ''} value="${esc(shown)}" ${dis}></label>`;
+  }
+  return `<label class="fld ${cls}"><span>${label}</span><input type="${type}" data-k="${key}" value="${esc(v ?? '')}" ${dis}></label>`;
+}
+// ζωντανή ενημέρωση του CUR από τη φόρμα
+document.addEventListener('input', onField);
+document.addEventListener('change', onField);
+function onField(e) {
+  const el = e.target; if (!CUR || !el.dataset || !el.dataset.k || !isAdmin()) return;
+  if (!$('tabBody') || !$('tabBody').contains(el)) return;
+  const k = el.dataset.k;
+  let val;
+  if (el.type === 'checkbox') val = el.checked;
+  else if (el.type === 'radio') { if (!el.checked) return; val = el.value; }
+  else if (el.dataset.num) {
+    val = parseNum(el.value, !!el.dataset.coord);
+    if (!Number.isNaN(val) && val !== null) {
+      if (!el.dataset.coord && val < 0) val = NaN;                       // όχι αρνητικές τιμές
+      if (k.startsWith('scores.') && val > 10) val = NaN;               // βαθμός 0–10
+      if (k === 'coverage' && val > 100) val = NaN;                      // κάλυψη ως ποσοστό
+      if (/^tasks\.\w+\.hours$/.test(k) && val > 1000) val = NaN;      // ώρες εργασίας: έως 1000
+    }
+    el.classList.toggle('invalid', Number.isNaN(val));
+    if (Number.isNaN(val)) { markDirty(); return; }   // άκυρο: δεν αλλάζει την αποθηκευμένη τιμή
+  }
+  else val = el.value;
+  setPath(CUR, k, val);
+  markDirty();
+  renderLive(k, el, val);
+}
+function getPath(o, path) { return path.split('.').reduce((a, k) => (a == null ? undefined : a[k]), o); }
+function setPath(o, path, v) {
+  const ks = path.split('.'); let a = o;
+  for (let i = 0; i < ks.length - 1; i++) { if (a[ks[i]] == null || typeof a[ks[i]] !== 'object') a[ks[i]] = {}; a = a[ks[i]]; }
+  a[ks[ks.length - 1]] = v;
+}
+// ενημέρωση υπολογισμών χωρίς επανασχεδίαση της φόρμας
+function renderLive(k, el, val) {
+  if (k === 'phase') { applyPhaseRules(val); renderDetail(); return; }
+  if (k.startsWith('markers.')) { drawPoi(); if (k.endsWith('.color')) renderTab(); return; }
+  if (k === 'lat' || k === 'lng') {
+    const la = num(CUR.lat), ln = num(CUR.lng);
+    if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
+    if (la !== null && ln !== null && la >= -90 && la <= 90 && ln >= -180 && ln <= 180) tempMarker = L.marker([la, ln]).addTo(map);
+  }
+  if ((k === 'lat' || k === 'lng') && TAB === 'info')
+    document.querySelectorAll('.poi-row .poi-d').forEach((cell, i) => { if (CUR.markers[i]) cell.textContent = poiDist(CUR.markers[i]); });
+  if (k === 'kaek' && $('kaekWarn')) $('kaekWarn').classList.toggle('hidden', kaekOk(val));
+  if (TAB === 'terms') renderCalc();
+  if (/^tasks\.\w+\.status$/.test(k)) { const t = el.closest('.task'); if (t) t.className = 'task st-' + (val || 'todo'); }
+  if (/^checks\.\w+\.state$/.test(k)) { const r = el.closest('.chkrow'); if (r) r.className = 'chkrow cs-' + (val || 'none'); }
+  if ($('taskSummary')) renderTaskSummary();
+  if ($('checkSum')) $('checkSum').innerHTML = checkSumHtml(CUR);
+  if ($('critBox')) $('critBox').innerHTML = critTable(CUR);
+  if ($('econBox')) $('econBox').innerHTML = econTable(CUR);
+  if ($('scoreBox')) $('scoreBox').innerHTML = scoreHtml(CUR);
+}
+
+function renderTab() {
+  const b = $('tabBody'); if (!b) return;
+  ({ info: tabInfo, crit: tabCrit, terms: tabTerms, tasks: tabTasks, tech: tabTech, econ: tabEcon, diary: tabDiary, files: tabFiles, review: tabReview })[TAB](b);
+}
+
+// --- Στοιχεία ---
+function tabInfo(b) {
+  const lat = num(CUR.lat), lng = num(CUR.lng), has = lat !== null && lng !== null;
+  const dis = isAdmin() ? '' : 'disabled';
+  const ct = CUR.contact_type || 'owner';
+  b.innerHTML = `
+  <fieldset><legend>Γενικά</legend><div class="grid">
+    ${isAdmin() && PROJECTS.length > 1 ? F('Έργο', 'project', 'select', { options: PROJECTS.map(p => [esc(p.id), esc(p.name)]), full: true }) : ''}
+    ${F('Κωδικός φακέλου', 'code')}${F('Τίτλος', 'title')}
+    ${F('Διεύθυνση / θέση', 'address', 'text', { full: true })}
+    ${F('Δήμος / περιοχή', 'municipality')}${F('Εμβαδόν (m²)', 'area', 'num')}
+    ${F('Τιμή (€)', 'price', 'num')}<div></div>
+    ${F('Περιγραφή', 'description', 'textarea', { rows: 4 })}
+  </div></fieldset>
+
+  <fieldset><legend>Πολεοδομικά στοιχεία</legend><div class="grid">
+    ${F('Ο.Τ. (οικοδομικό τετράγωνο)', 'ot')}${F('Πολεοδομική Ενότητα', 'pol_enotita')}
+    ${F('ΚΑΕΚ', 'kaek')}${F('Αρμόδια ΥΔΟΜ', 'ydom')}
+  </div>
+  ${CUR.kaek ? `<div style="margin-top:6px"><button class="btn sm" onclick="openKtimatologio()">Άνοιγμα ΚΑΕΚ στο Κτηματολόγιο ↗</button></div>` : ''}
+  <div id="kaekWarn" class="note bad ${kaekOk(CUR.kaek) ? 'hidden' : ''}" style="margin-top:4px">Το ΚΑΕΚ συνήθως έχει 12 ψηφία (π.χ. 050681203001), ή 12 ψηφία με /x/x για οριζόντιες ιδιοκτησίες.</div>
+  </fieldset>
+
+  <fieldset><legend>Κύρωση Πράξης Εφαρμογής</legend><div class="grid">
+    ${F('Αριθμός Πράξης Εφαρμογής', 'pe_number')}${F('Ημερομηνία κύρωσης', 'pe_date', 'date')}
+    ${F('Απόφαση κύρωσης (αριθμός, αρχή)', 'pe_decision', 'text', { full: true })}
+    ${F('Μεταγραφή / καταχώριση στο Κτηματολόγιο', 'pe_registry', 'text', { full: true })}
+    ${F('Σημειώσεις Πράξης Εφαρμογής', 'pe_notes', 'textarea', { rows: 2 })}
+  </div></fieldset>
+
+  <fieldset><legend>Θέση στον χάρτη</legend><div class="grid">
+    ${F('Γεωγρ. πλάτος (lat)', 'lat', 'num', { dot: true })}${F('Γεωγρ. μήκος (lng)', 'lng', 'num', { dot: true })}
+  </div>
+  <div class="row" style="margin-top:8px">
+    ${isAdmin() ? '<button class="btn primary sm" onclick="startPick()">📍 Ορισμός από τον χάρτη</button>' : ''}
+    ${has ? `<button class="btn sm" onclick="copyCoords()" title="Αντιγραφή «πλάτος, μήκος» για Google Maps, Waze, GPS κ.λπ.">📋 Αντιγραφή</button>
+      <button class="btn sm" onclick="map.setView([${lat},${lng}],18)">Εστίαση</button>
+      <a class="btn sm" target="_blank" rel="noopener" href="https://www.google.com/maps?q=${lat},${lng}">Google Maps ↗</a>` : '<span class="note">Δεν έχει οριστεί θέση</span>'}
+    ${has ? `<a class="btn sm" target="_blank" rel="noopener" href="${esc(earthUrl(CUR))}" title="Google Earth σε 3D με πινέζα στο οικόπεδο">Google Earth 3D ↗</a>
+      <button class="btn sm" onclick="exportPlotEarthKml()" title="KML με οικόπεδο και σημεία, σε λοξή 3D όψη, για Google Earth">⬇ Earth 3D + σημεία (KML)</button>` : ''}
+    ${has || CUR.kaek ? `<button class="btn sm" onclick="openKtimatologio()" title="Ανοίγει το maps.ktimatologio.gr κεντραρισμένο στο οικόπεδο (και αντιγράφει το ΚΑΕΚ)">Κτηματολόγιο ↗</button>` : ''}
+    ${has ? `<a class="btn sm" target="_blank" rel="noopener" href="${esc(teeUrl(CUR))}" title="Ενιαίος Ψηφιακός Χάρτης ΤΕΕ (χρήσεις γης, όροι δόμησης), κεντραρισμένος στο οικόπεδο">Χάρτης ΤΕΕ ↗</a>
+      <button class="btn sm" onclick="openValuemaps()" title="Ανοίγει το valuemaps.gov.gr και αντιγράφει τις συντεταγμένες για αναζήτηση">Αντικειμενικές αξίες ↗</button>
+      <a class="btn sm" target="_blank" rel="noopener" href="${esc(floodsUrl(CUR))}" title="Χάρτες κινδύνου πλημμύρας ΥΠΕΝ, κεντραρισμένοι στο οικόπεδο">Πλημμύρες ↗</a>` : ''}
+  </div>
+  <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:8px"><span class="note">Σημεία στον χάρτη (ετικέτες: στάσεις, όρια, σημεία αναφοράς κ.λπ.)</span>
+  ${poiListHtml()}</div>
+  </fieldset>
+
+  <fieldset><legend>Υπεύθυνος επικοινωνίας</legend>
+    <div class="radios">
+      <label><input type="radio" name="ctype" data-k="contact_type" value="owner" ${ct === 'owner' ? 'checked' : ''} ${dis}> Ιδιοκτήτης</label>
+      <label><input type="radio" name="ctype" data-k="contact_type" value="broker" ${ct === 'broker' ? 'checked' : ''} ${dis}> Μεσίτης</label>
+    </div>
+    <div class="grid">
+      ${F('Ονοματεπώνυμο', 'contact_name', 'text', { full: true })}${F('Τηλέφωνο', 'contact_phone', 'tel')}${F('Email', 'contact_email', 'email')}
+    </div>
+    <div class="row" style="margin-top:8px">
+      ${CUR.contact_phone ? `<a class="btn sm" href="tel:${esc(CUR.contact_phone)}">📞 Κλήση</a>` : ''}
+      ${CUR.contact_email ? `<a class="btn sm" href="mailto:${esc(CUR.contact_email)}">✉ Email</a>` : ''}
+    </div>
+  </fieldset>
+
+  <fieldset><legend>Φάκελος Dropbox</legend>
+    ${F('Σύνδεσμος φακέλου (προαιρετικά)', 'dropbox', 'url', { full: true })}
+    ${CUR.dropbox ? `<div style="margin-top:8px"><a class="btn sm" target="_blank" rel="noopener" href="${esc(safeUrl(CUR.dropbox))}">📂 Άνοιγμα φακέλου ↗</a></div>` : ''}
+  </fieldset>
+
+  ${isAdmin() ? `<div class="row" style="justify-content:flex-end"><button class="btn danger sm" onclick="deletePlot()">Διαγραφή οικοπέδου</button></div>` : ''}`;
+}
+
+// --- Κριτήρια ---
+function tabCrit(b) {
+  b.innerHTML = `
+  <fieldset><legend>Πρώτος έλεγχος κριτηρίων</legend>
+    ${F('Πρώτος έλεγχος των κριτηρίων απόστασης και πλάτους οδού', 'crit_checked', 'check')}
+    <div class="grid" style="margin-top:6px">
+      ${F('Απόσταση από εμπορικό κέντρο (km)', 'crit_distance', 'num')}${F('Απόσταση από θαλάσσιο μέτωπο (km)', 'crit_dist_sea', 'num')}
+      ${F('Πλάτος οδού (m)', 'crit_road_width', 'num')}
+    </div>
+    <div id="critBox" style="margin-top:8px">${critTable(CUR)}</div>
+    <div style="margin-top:8px">${F('Απορρίφθηκε από τα κριτήρια', 'crit_rejected', 'check', { red: true })}</div>
+    <div style="margin-top:6px">${isAdmin() ? F('Παρατηρήσεις διαχειριστή', 'crit_notes', 'textarea', { rows: 5 })
+      : `<div class="fld"><span>Παρατηρήσεις διαχειριστή</span><div class="ro">${esc(CUR.crit_notes || '—')}</div></div>`}</div>
+  </fieldset>`;
+}
+
+// --- Όροι δόμησης ---
+const ZONES = [['', '—'], ['entos', 'Εντός σχεδίου'], ['oikismos', 'Οικισμός'], ['ektos', 'Εκτός σχεδίου'], ['other', 'Άλλο']];
+// τιμή «n» (π.χ. «3») ή εύρος «a-b» (π.χ. «2-3»)· «0» = δεν επαρκεί
+const unitsLabel = (u) => {
+  u = String(u ?? ''); if (!u) return ''; if (u === '0') return 'Δεν επαρκεί';
+  const m = /^(\d+)-(\d+)$/.exec(u); return m ? `${m[1]}–${m[2]} ${BT().pl}` : nUnits(+u);
+};
+const unitsList = (cur) => {
+  const a = CFG.contract.units_min, b = CFG.contract.units_max, v = ['', '0'];
+  for (let n = 1; n <= Math.max(b, 1) && n <= 20; n++) v.push(String(n));
+  if (a < b) v.push(`${a}-${b}`);
+  if (cur && !v.includes(String(cur))) v.push(String(cur));                 // παλιά τιμή εκτός εύρους: να μη χάνεται
+  return v.map(x => [x, x ? unitsLabel(x) : '—']);
+};
+function tabTerms(b) {
+  b.innerHTML = `
+  <fieldset><legend>Όροι δόμησης</legend><div class="grid">
+    ${F('Καθεστώς', 'zone', 'select', { options: ZONES })}${F('Εμβαδόν οικοπέδου (m²)', 'area', 'num')}
+    ${F('Συντελεστής δόμησης (σ.δ.)', 'sd', 'num')}${F('Ποσοστό κάλυψης (%)', 'coverage', 'num')}
+    ${F('Μέγιστο ύψος (m)', 'max_height', 'num')}${F('Μέγ. αριθμός ορόφων', 'max_floors', 'num')}
+    ${F('Πρόσωπο οικοπέδου (m)', 'frontage', 'num')}${F('Αρτιότητα: ελάχ. εμβαδόν (m²)', 'min_area', 'num')}
+    ${F('Αρτιότητα: ελάχ. πρόσωπο (m)', 'min_frontage', 'num')}${F('Δυνατότητα ' + esc(BT().gpl), 'units', 'select', { options: unitsList(CUR.units).map(([v, t]) => [v, esc(t)]) })}
+    ${isAdmin() ? F('Σημειώσεις όρων / ΦΕΚ / ειδικοί όροι', 'terms_notes', 'textarea', { rows: 4 })
+      : `<div class="fld full"><span>Σημειώσεις όρων</span><div class="ro">${esc(CUR.terms_notes || '—')}</div></div>`}
+  </div></fieldset>
+  <fieldset><legend>Υπολογισμός οικοδομικής εκμετάλλευσης</legend><div id="calcBox"></div></fieldset>`;
+  renderCalc();
+}
+const CALC_NOTE = 'Ενδεικτικός υπολογισμός. Δεν περιλαμβάνει υπόγεια, εξώστες, ημιυπαίθριους και λοιπά πλεονάσματα/μη προσμετρούμενα.';
+const FLOOR_H = 3.2;
+const chk = (ok) => ok === null || ok === undefined ? '—' : (ok ? '<span class="ok">✓ ναι</span>' : '<span class="bad">✗ όχι</span>');
+function calcTerms(P) {
+  const E = num(P.area), sd = num(P.sd), k = num(P.coverage), H = num(P.max_height), fl = num(P.max_floors);
+  const fr = num(P.frontage), minA = num(P.min_area), minF = num(P.min_frontage);
+  const dom = E !== null && sd !== null ? E * sd : null;
+  const cov = E !== null && k !== null ? E * k / 100 : null;
+  const levels = dom && cov ? Math.ceil(dom / cov - 1e-9) : null;
+  const levelsByH = H !== null ? Math.floor(H / FLOOR_H + 1e-9) : null;
+  const maxLv = [levelsByH, fl].filter(x => x !== null && x >= 0);
+  const lvLimit = maxLv.length ? Math.min(...maxLv) : null;
+  const usable = dom !== null && cov !== null && lvLimit !== null ? Math.min(dom, cov * lvLimit) : dom;
+  const artA = E !== null && minA !== null ? E >= minA : null;
+  const artF = fr !== null && minF !== null ? fr >= minF : null;
+  // Πόσα κτίρια (κατοικίες, συνεργεία κ.λπ., κατά το είδος του έργου) χωρούν με το ελάχιστο εμβαδόν:
+  // καθαρό εμβαδόν (αξιοποιήσιμη δόμηση × λόγος καθαρού/μικτού) ÷ ελάχιστο εμβαδόν ανά κτίριο
+  const hmin = CFG.contract.house_min_m2, net = usable === null ? null : usable * CFG.contract.net_ratio;
+  const housesFit = net === null || !(hmin > 0) ? null : Math.floor(net / hmin + 1e-9);
+  return { E, dom, cov, levels, lvLimit, usable, net, artA, artF, housesFit };
+}
+// οι αριθμοί κτιρίων που ελέγχονται: το εύρος της σύμβασης (έως 10 γραμμές)
+const unitCounts = () => { const r = []; for (let n = CFG.contract.units_min; n <= CFG.contract.units_max && r.length < 10; n++) r.push(n); return r; };
+function calcTable(P) {
+  const { E, dom, cov, levels, lvLimit, usable, net, artA, artF } = calcTerms(P);
+  const { house_min_m2: hmin, house_max_m2: hmax } = CFG.contract;
+  const per = (n) => {
+    if (usable === null) return '—';
+    const a = usable / n, k = net / n, ok = k >= hmin;
+    return `${fmt(a, 1)} m² μικτά ≈ ${fmt(k, 0)} m² καθαρά · ${ok ? `<span class="ok">✓${k > hmax ? ' (πάνω από ' + hmax + ')' : ''}</span>` : `<span class="bad">✗ κάτω από ${hmin}</span>`}`;
+  };
+  return `
+  <table class="calc">
+    <tr><td>Εμβαδόν οικοπέδου</td><td>${fmt(E)} m²</td></tr>
+    <tr><td>Μέγιστη δόμηση (Ε × σ.δ.)</td><td>${fmt(dom, 1)} m²</td></tr>
+    <tr><td>Μέγιστη κάλυψη (Ε × κ)</td><td>${fmt(cov, 1)} m²</td></tr>
+    <tr><td>Όροφοι για εξάντληση δόμησης</td><td>${levels ?? '—'}</td></tr>
+    <tr><td>Επιτρεπτοί όροφοι (ύψος ÷ ${String(FLOOR_H).replace('.', ',')} m / μέγ. ορόφων)</td><td>${lvLimit ?? '—'}</td></tr>
+    <tr><td>Αξιοποιήσιμη δόμηση</td><td>${fmt(usable, 1)} m²</td></tr>
+    <tr class="h"><td colspan="2">Αρτιότητα</td></tr>
+    <tr><td>Εμβαδόν ≥ ελάχιστο</td><td>${chk(artA)}</td></tr>
+    <tr><td>Πρόσωπο ≥ ελάχιστο</td><td>${chk(artF)}</td></tr>
+    <tr class="h"><td colspan="2">Ανά ${esc(BT().sg)} (σύμβαση: ${esc(unitsReq())}, ${hmin}–${hmax} m² καθαρά το καθένα · καθαρό ≈ ${String(CFG.contract.net_ratio).replace('.', ',')} × μικτό)</td></tr>
+    ${unitCounts().map(n => `<tr><td>${esc(nUnits(n))}</td><td>${per(n)}</td></tr>`).join('')}
+  </table>`;
+}
+function renderCalc() {
+  const box = $('calcBox'); if (!box) return;
+  box.innerHTML = calcTable(CUR) + `<div class="note" style="margin-top:8px">${CALC_NOTE}</div>`;
+}
+
+// ===================== ΕΚΤΥΠΩΣΗ ΑΝΑΦΟΡΑΣ =====================
+function printReport() {
+  if (!CUR) return;
+  const P = CUR;
+  const w = window.open('', '_blank');
+  if (!w) return toast('Ο browser μπλόκαρε το νέο παράθυρο. Επιτρέψτε τα αναδυόμενα παράθυρα για αυτό το site.', 'err');
+  if (DIRTY) toast('Η αναφορά περιλαμβάνει μη αποθηκευμένες αλλαγές. Αποθηκεύστε για να ταυτίζεται με τα αποθηκευμένα στοιχεία.');
+  const v = (x) => (x === null || x === undefined || String(x).trim() === '') ? '—' : esc(x);
+  const pre = (x) => (x && String(x).trim()) ? `<div class="pre">${esc(x)}</div>` : '—';
+  const n = (x, d = 2, u = '') => num(x) === null ? '—' : fmt(num(x), d) + (u ? ' ' + u : '');
+  const yn = (b) => b ? '<b>✓ Ναι</b>' : 'Όχι';
+  const kv = (rows) => `<table class="kv">${rows.map(([k, val]) => `<tr><th>${k}</th><td>${val}</td></tr>`).join('')}</table>`;
+  const lat = num(P.lat), lng = num(P.lng), has = lat !== null && lng !== null;
+  let egsa = '—';
+  if (has && window.proj4) { const [x, y] = proj4('EPSG:4326', 'EPSG:2100', [lng, lat]); egsa = `X = ${x.toFixed(2)} &nbsp; Y = ${y.toFixed(2)}`; }
+  const ppm = num(P.price) !== null && num(P.area) ? fmt(num(P.price) / num(P.area), 0) + ' €/m²' : '—';
+  const zone = (ZONES.find(z => z[0] === String(P.zone ?? '')) || [, ''])[1] || '—';
+  const REVS = CUR_REVIEWS.filter(r => !r.foreign);   // η αναφορά πάει στον πελάτη: μόνο παρατηρήσεις του έργου του
+  const rej = REVS.filter(r => r.rejected);
+  const PH = PHASES.find(y => y[0] === phaseOf(P)) || PHASES[0];
+  const apv = REVS.filter(r => r.approved);
+  const badges = [
+    `<span class="bdg ${PH[2]}">${PH[1]}</span>`,
+    apv.length ? `<span class="bdg p">ΕΓΚΡΙΣΗ από ${apv.length} χρήστη/ες</span>` : '',
+    ({ rejected: '<span class="bdg r">Απορρίφθηκε από τα κριτήρια</span>', fail: '<span class="bdg o">Κριτήρια ✗ εκτός ορίων</span>', ok: '<span class="bdg g">Κριτήρια ✓</span>' })[critStatus(P)] || '<span class="bdg">Κριτήρια: χωρίς έλεγχο</span>',
+    rej.length ? `<span class="bdg o">ΑΠΟΡΡΙΨΗ από ${rej.length} χρήστη/ες</span>` : '',
+    P.units ? `<span class="bdg b">${esc(unitsLabel(P.units))}</span>` : '',
+  ].join('');
+  const evs = [...(P.events || [])].sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+  const photos = (P.links || []).filter(l => l.kind === 'photo'), docs = (P.links || []).filter(l => l.kind !== 'photo');
+  // Φάση Β (Γ, Δ, Ε.1): στην αναφορά μόνο μετά την έγκριση της Φάσης Α από τον πελάτη (φάση Β ή ολοκληρώθηκε)
+  const showB = partBOpen(P);
+  const partBSections = () => `<section><h2>7. Αναλυτικός τεχνικός έλεγχος</h2>
+<div class="note">Γ.3 Έλεγχος επάρκειας στοιχείων και εντοπισμός προβλημάτων</div>
+<table class="list"><tr><th>Θέμα</th><th style="width:26mm">Αποτέλεσμα</th><th>Σχόλιο</th></tr>
+${CHECKS.map(([k, l]) => { const c = (P.checks || {})[k] || {}; const st = c.state === 'ok' ? '<span class="ok">✓ ΟΚ</span>' : c.state === 'problem' ? '<b class="bad">⚠ Πρόβλημα</b>' : c.state === 'na' ? 'Δ/Α' : '—';
+  return `<tr><td>${esc(l)}</td><td>${st}</td><td>${esc(c.note || '')}</td></tr>`; }).join('')}
+</table>
+<div class="note" style="margin-top:8px">Γ.4 Τεκμηρίωση κριτηρίων σύμβασης</div>
+<div class="two">${kv([['Πλάτος οδού (ρυμοτομικό)', n(P.road_width_plan, 2, 'm')], ['Πλάτος οδού (επί τόπου)', n(P.road_width_site, 2, 'm')]])}<div></div></div>
+${critTable(P)}
+<div class="note" style="margin-top:8px">Γ.5 Πρόσβαση</div>
+${kv([['Μετρό', v(P.access_metro)], ['Τραμ', v(P.access_tram)], ['Λεωφορεία', v(P.access_bus)], ['Σημειώσεις', pre(P.access_notes)]])}
+</section>
+
+<section><h2>8. Οικονομοτεχνική αξιολόγηση</h2>
+${P.market_notes ? `<div class="note">Δ.1 Οικοδομική δραστηριότητα περιοχής</div>${pre(P.market_notes)}` : ''}
+<div class="two" style="margin-top:6px">${kv([['Τιμή πώλησης νέων ' + esc(BT().gpl), n(P.new_sale_m2, 0, '€/m²')], ['Κόστος κατασκευής', n(P.build_cost_m2, 0, '€/m²')]])}${kv([['Λοιπά κόστη', n(P.other_costs, 0, '€')]])}</div>
+<div style="margin-top:6px">${econTable(P)}</div>
+</section>
+
+<section><h2>9. Βαθμολόγηση</h2>
+<table class="calc">${SCORE_CRITERIA.map(([k, l, wt]) => `<tr><td>${l} <span class="note">(βάρος ${wt}%)</span></td><td>${num((P.scores || {})[k]) === null ? '—' : fmt(num(P.scores[k]), 1) + ' / 10'}</td></tr>`).join('')}
+<tr><td><b>Σταθμισμένη βαθμολογία</b>${scoreTotal(P) === null ? '' : ` (${scoreCount(P)}/${SCORE_CRITERIA.length} κριτήρια${scorePartial(P) ? ', μερική' : ''})`}</td><td>${scoreTotal(P) === null ? '—' : fmt(scoreTotal(P), 2) + ' / 10'}</td></tr></table>
+</section>`;
+  // πολύγωνα του έργου κοντά στο οικόπεδο (το πλαίσιό τους απέχει < ~5 km): στον χάρτη και στον πίνακα
+  const NEAR = 0.05;
+  const nearAreas = !has ? [] : projAreas().filter(a => {
+    const la = a.coords.map(c => c[0]), ln = a.coords.map(c => c[1]);
+    return Math.min(...la) - NEAR <= lat && lat <= Math.max(...la) + NEAR && Math.min(...ln) - NEAR <= lng && lng <= Math.max(...ln) + NEAR;
+  });
+  const now = new Date().toLocaleString('el-GR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const title = `Αναφορά ${P.code || ''} ${P.title || ''}`.trim();
+  const ktimaOpts = JSON.stringify({ layers: CFG.ktimaLayer, format: 'image/png', transparent: true, version: '1.1.1', maxZoom: 20, minZoom: 6, bounds: [[34.5, 19.0], [41.5, 28.5]], attribution: 'Κτηματολόγιο ©' });
+
+  let html = `<!doctype html><html lang="el"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(title)}</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+@page{size:A4;margin:14mm 13mm 16mm}
+*{box-sizing:border-box}
+body{margin:0;background:#e9ecef;color:#1f2328;font:10.5pt/1.45 -apple-system,"Segoe UI",Roboto,"Noto Sans",Arial,sans-serif}
+.sheet{background:#fff;max-width:210mm;margin:58px auto 24px;padding:14mm 13mm;box-shadow:0 2px 12px rgba(0,0,0,.15)}
+.bar{position:fixed;top:0;left:0;right:0;height:46px;background:#161b22;color:#c9d1d9;display:flex;align-items:center;gap:8px;padding:0 14px;z-index:9999;font-size:13px}
+.bar b{margin-right:auto}
+.bar button{background:transparent;border:1px solid #30363d;color:#c9d1d9;border-radius:6px;padding:5px 12px;cursor:pointer;font:inherit}
+.bar button.p{border-color:#58a6ff;color:#58a6ff}
+.bar button.on{background:#21262d}
+.bar .warn{color:#d29922}
+header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1f2328;padding-bottom:6px;margin-bottom:10px}
+header .app{font-size:9pt;color:#57606a;letter-spacing:.5px;text-transform:uppercase}
+h1{font-size:17pt;margin:2px 0 0}
+header .meta{text-align:right;font-size:9pt;color:#57606a}
+.badges{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 4px}
+.bdg{font-size:8.5pt;border:1px solid #8c959f;border-radius:10px;padding:0 8px;color:#57606a}
+.bdg.p{border-color:#8250df;color:#8250df}.bdg.g{border-color:#1a7f37;color:#1a7f37}.bdg.r{border-color:#cf222e;color:#cf222e}.bdg.o{border-color:#9a6700;color:#9a6700}.bdg.b{border-color:#0969da;color:#0969da}
+h2{font-size:11.5pt;margin:16px 0 6px;padding-bottom:3px;border-bottom:1px solid #d0d7de;color:#0969da;break-after:avoid}
+section{break-inside:auto}
+/* σελιδοποίηση: επικεφαλίδα ποτέ μόνη στο κάτω μέρος της σελίδας: «κρατά» 30 mm από κάτω της,
+   οπότε αν δεν χωρά περιεχόμενο, πηγαίνει στην επόμενη σελίδα μαζί με αυτό */
+h2{break-inside:avoid}
+h2::after{content:"";display:block;height:30mm;margin-bottom:-30mm}
+.kv tr,.calc tr{break-inside:avoid}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:0 16px}
+table{width:100%;border-collapse:collapse}
+.kv th{text-align:left;font-weight:400;color:#57606a;width:42%;padding:3px 6px 3px 0;vertical-align:top;border-bottom:1px solid #eaeef2}
+.kv td{padding:3px 0;border-bottom:1px solid #eaeef2;vertical-align:top}
+.calc td{padding:3px 6px;border-bottom:1px solid #eaeef2}
+.calc td:last-child{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.calc tr.h{break-after:avoid}
+.calc tr.h td{text-align:left;color:#57606a;font-weight:400;font-size:8.5pt;text-transform:uppercase;padding-top:8px}
+.ok{color:#1a7f37}.bad{color:#cf222e}
+.note{font-size:8.5pt;color:#57606a;margin-top:4px}
+.pre{white-space:pre-wrap}
+.list th,.list td{text-align:left;padding:4px 6px;border-bottom:1px solid #eaeef2;vertical-align:top}
+.list th{font-weight:400;color:#57606a;font-size:9pt;border-bottom:1px solid #d0d7de}
+.list tr{break-inside:avoid}
+#rmap{height:78mm;border:1px solid #d0d7de;margin-top:6px}
+.photos{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.photos figure{margin:0;break-inside:avoid;border:1px solid #d0d7de}
+.photos img{width:100%;height:46mm;object-fit:cover;display:block;background:#f6f8fa}
+.photos figcaption{font-size:8.5pt;padding:2px 4px}
+.url{font-size:8pt;color:#57606a;word-break:break-all}
+.rev{border-left:3px solid #d0d7de;padding:3px 0 3px 8px;margin-bottom:6px;break-inside:avoid}
+.rev.rj{border-left-color:#cf222e}
+.poi-lbl{background:rgba(255,255,255,.95);color:#1f2328;border:1px solid #8c959f;border-radius:3px;padding:0 6px;font-size:10.5px;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.3);white-space:nowrap}
+.poi-lbl:before{display:none}
+.poi-ico svg{display:block;filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.55))}
+.list td .note{margin-top:1px}
+.rev .hd{font-size:9pt;color:#57606a}
+footer{margin-top:18px;padding-top:6px;border-top:1px solid #d0d7de;font-size:8.5pt;color:#57606a;display:flex;justify-content:space-between}
+.empty{color:#8c959f}
+@media print{
+  body{background:#fff}
+  .bar{display:none}
+  .sheet{margin:0;padding:0;box-shadow:none;max-width:none}
+  a{color:inherit;text-decoration:none}
+}
+<\/style></head><body>
+<div class="bar">
+  <b>🖨 ${esc(title)}</b>
+  ${DIRTY ? '<span class="warn">Περιλαμβάνει μη αποθηκευμένες αλλαγές</span>' : ''}
+  ${has ? '<span>Χάρτης:</span><button id="bOsm" class="on" onclick="window.base&&base(0)">OSM</button><button id="bKt" onclick="window.base&&base(1)">Κτηματολόγιο</button>' : ''}
+  <button class="p" onclick="window.print()">Εκτύπωση / PDF</button>
+  <button onclick="window.close()">Κλείσιμο</button>
+</div>
+<div class="sheet">
+<header>
+  <div><div class="app">PlotManager · Αναφορά οικοπέδου${curProj() ? ' · ' + esc(curProj().name) + (curProj().client ? ' (' + esc(curProj().client) + ')' : '') : ''}</div>
+    <h1>${P.code ? esc(P.code) + ' · ' : ''}${esc(P.title || '')}</h1>
+    <div class="badges">${badges}</div></div>
+  <div class="meta">${now}<br>${esc(ME.name || ME.username)}</div>
+</header>
+
+<section><h2>1. Στοιχεία οικοπέδου</h2>
+<div class="two">
+${kv([['Κωδικός φακέλου', v(P.code)], ['Διεύθυνση / θέση', v(P.address)], ['Δήμος / περιοχή', v(P.municipality)]])}
+${kv([['Εμβαδόν', n(P.area, 2, 'm²')], ['Τιμή', n(P.price, 0, '€')], ['Τιμή ανά m²', ppm], ['Φάκελος Dropbox', P.dropbox ? `<a href="${esc(safeUrl(P.dropbox))}">σύνδεσμος</a>` : '—']])}
+</div>
+${P.description ? `<div style="margin-top:6px"><span class="note">Περιγραφή</span>${pre(P.description)}</div>` : ''}
+<div class="note" style="margin-top:8px">Πολεοδομικά στοιχεία</div>
+<div class="two">
+${kv([['Ο.Τ.', v(P.ot)], ['Πολεοδομική Ενότητα', v(P.pol_enotita)], ['ΚΑΕΚ', v(P.kaek)], ['Αρμόδια ΥΔΟΜ', v(P.ydom)]])}
+${kv([['Πράξη Εφαρμογής', v(P.pe_number)], ['Απόφαση κύρωσης', v(P.pe_decision)], ['Ημερομηνία κύρωσης', P.pe_date ? fmtDate(P.pe_date) : '—'], ['Μεταγραφή / Κτηματολόγιο', v(P.pe_registry)]])}
+</div>
+${P.pe_notes ? `<div style="margin-top:4px"><span class="note">Σημειώσεις Πράξης Εφαρμογής</span>${pre(P.pe_notes)}</div>` : ''}
+</section>
+
+<section><h2>2. Θέση</h2>
+${kv([['WGS84 (φ, λ)', has ? `${lat.toFixed(6)}, ${lng.toFixed(6)}` : '—'], ["ΕΓΣΑ'87", egsa], ['Google Maps', has ? `<a href="https://www.google.com/maps?q=${lat},${lng}">maps.google.com/?q=${lat},${lng}</a>` : '—'], ['Κτηματολόγιο', has ? `<a href="${esc(ktimaUrl(P))}">maps.ktimatologio.gr (κεντραρισμένο)</a>` : '—'], ['Google Earth', has ? `<a href="${esc(earthUrl(P))}">πινέζα στο Google Earth</a>` : '—'], ['Χάρτης ΤΕΕ (χρήσεις γης, όροι)', has ? `<a href="${esc(teeUrl(P))}">sdigmap.tee.gov.gr (κεντραρισμένο)</a>` : '—'], ['Κίνδυνος πλημμύρας', has ? `<a href="${esc(floodsUrl(P))}">gis.floods.ypeka.gr (κεντραρισμένο)</a>` : '—'], ['Αντικειμενικές αξίες', '<a href="https://www.valuemaps.gov.gr/">valuemaps.gov.gr</a>']])}
+${has ? '<div id="rmap"></div>' : '<div class="empty">Δεν έχει οριστεί θέση στον χάρτη.</div>'}
+${nearAreas.length ? `<div class="note" style="margin-top:8px">Πολύγωνα έργου στην περιοχή</div>
+<table class="list"><tr><th style="width:8mm"></th><th>Πολύγωνο</th><th>Πληροφορία</th><th style="width:34mm">Θέση οικοπέδου</th></tr>
+${nearAreas.map(a => `<tr><td><span style="display:inline-block;width:12px;height:10px;border:2px solid ${esc(a.color)}"></span></td><td>${esc(a.name || 'Πολύγωνο')}${a.comment ? `<div class="note">${esc(a.comment)}</div>` : ''}</td><td>${esc(a.info || '')}</td><td>${pointInArea(lat, lng, a.coords) ? '<b class="ok">εντός</b>' : 'εκτός'}</td></tr>`).join('')}</table>` : ''}
+${(P.markers || []).length ? `<div class="note" style="margin-top:8px">Σημεία στον χάρτη</div>
+<table class="list"><tr><th style="width:8mm"></th><th>Ετικέτα</th><th>WGS84 (φ, λ)</th><th style="width:28mm">Απόσταση από οικόπεδο</th></tr>
+${P.markers.map(mk => `<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${esc(mk.color)};border:1px solid #0d1117"></span></td><td>${esc(mk.label || '—')}</td><td>${mk.lat.toFixed(6)}, ${mk.lng.toFixed(6)}</td><td>${poiDist(mk) || '—'}</td></tr>`).join('')}</table>` : ''}
+</section>
+
+<section><h2>3. Υπεύθυνος επικοινωνίας</h2>
+${kv([['Ιδιότητα', P.contact_type === 'broker' ? 'Μεσίτης' : 'Ιδιοκτήτης'], ['Ονοματεπώνυμο', v(P.contact_name)], ['Τηλέφωνο', v(P.contact_phone)], ['Email', v(P.contact_email)]])}
+</section>
+
+<section><h2>4. Πρώτος έλεγχος κριτηρίων</h2>
+${kv([['Έλεγχος απόστασης και πλάτους οδού', yn(P.crit_checked)], ['Απόσταση από εμπορικό κέντρο', n(P.crit_distance, 2, 'km')], ['Απόσταση από θαλάσσιο μέτωπο', n(P.crit_dist_sea, 2, 'km')], ['Πλάτος οδού', n(P.crit_road_width, 2, 'm')], ['Απορρίφθηκε από τα κριτήρια', P.crit_rejected ? '<b class="bad">ΝΑΙ</b>' : 'Όχι'], ['Παρατηρήσεις', pre(P.crit_notes)]])}
+</section>
+
+<section><h2>5. Όροι δόμησης και οικοδομική εκμετάλλευση</h2>
+<div class="two">
+${kv([['Καθεστώς', zone], ['Συντελεστής δόμησης', n(P.sd, 3)], ['Κάλυψη', n(P.coverage, 2, '%')], ['Μέγιστο ύψος', n(P.max_height, 2, 'm')], ['Μέγ. αριθμός ορόφων', n(P.max_floors, 0)]])}
+${kv([['Πρόσωπο οικοπέδου', n(P.frontage, 2, 'm')], ['Αρτιότητα: ελάχ. εμβαδόν', n(P.min_area, 2, 'm²')], ['Αρτιότητα: ελάχ. πρόσωπο', n(P.min_frontage, 2, 'm')], ['Δυνατότητα ' + esc(BT().gpl), P.units ? esc(unitsLabel(P.units)) : '—']])}
+</div>
+${P.terms_notes ? `<div style="margin-top:6px"><span class="note">Σημειώσεις όρων</span>${pre(P.terms_notes)}</div>` : ''}
+<div style="margin-top:8px">${calcTable(P)}</div>
+<div class="note">${CALC_NOTE}</div>
+</section>
+
+<section><h2>6. Εργασίες σύμβασης</h2>
+<table class="list"><tr><th style="width:12mm">Α/Α</th><th>Εργασία</th><th style="width:28mm">Κατάσταση</th><th style="width:22mm">Ημ/νία</th></tr>
+${TASK_GROUPS.filter(g => showB || g.part === 'A').map(g => `<tr><td colspan="4" style="color:#57606a;font-size:9pt;padding-top:8px">${g.part === 'A' ? 'ΦΑΣΗ Α' : 'ΦΑΣΗ Β'} · ${g.code}. ${g.title}</td></tr>` +
+  g.tasks.map(([k, code, t]) => { const x = (P.tasks || {})[k] || {}; const stl = (TASK_ST.find(y => y[0] === (x.status || '')) || TASK_ST[0])[1];
+    return `<tr><td>${code}</td><td>${esc(btText(t))}${x.notes ? `<div class="note">${esc(x.notes)}</div>` : ''}</td><td>${x.status === 'done' ? `<span class="ok">${stl}</span>` : stl}</td><td>${fmtDate(x.date)}</td></tr>`; }).join('')).join('')}
+</table>
+${showB ? '' : '<div class="note" style="margin-top:6px">Οι εργασίες της Φάσης Β (Γ, Δ) εμφανίζονται μετά την έγκριση της Φάσης Α από τον πελάτη.</div>'}
+</section>
+
+${showB ? partBSections() : `<section><h2>7. Φάση Β</h2>
+<div class="empty">Ο αναλυτικός τεχνικός έλεγχος, η οικονομοτεχνική αξιολόγηση και η βαθμολόγηση ανήκουν στη Φάση Β και περιλαμβάνονται στην αναφορά μετά την έγκριση της Φάσης Α από τον πελάτη.</div>
+</section>`}
+
+<section><h2>10. Ημερολόγιο εργασιών</h2>
+${evs.length ? `<table class="list"><tr><th style="width:22mm">Ημ/νία</th><th>Εργασία</th><th style="width:26mm">Κατάσταση</th></tr>
+${evs.map(e => `<tr><td>${fmtDate(e.date)}</td><td><b>${esc(e.title)}</b>${e.notes ? `<div class="pre">${esc(e.notes)}</div>` : ''}</td><td>${e.done ? '<span class="ok">Ολοκληρώθηκε</span>' : 'Εκκρεμεί'}</td></tr>`).join('')}</table>`
+  : '<div class="empty">Καμία εγγραφή.</div>'}
+</section>
+
+<section><h2>11. Φωτογραφίες και έγγραφα</h2>
+${photos.length ? `<div class="photos">${photos.map(l => `<figure><img src="${esc(rawUrl(l.url))}" alt=""><figcaption>${esc(l.title)}</figcaption></figure>`).join('')}</div>` : '<div class="empty">Καμία φωτογραφία.</div>'}
+${docs.length ? `<table class="list" style="margin-top:8px"><tr><th>Έγγραφο</th><th>Σύνδεσμος</th></tr>
+${docs.map(l => `<tr><td>${esc(l.title)}</td><td class="url"><a href="${esc(safeUrl(l.url))}">${esc(l.url)}</a></td></tr>`).join('')}</table>` : '<div class="empty" style="margin-top:6px">Κανένα έγγραφο.</div>'}
+</section>
+
+<section><h2>12. Παρατηρήσεις και αποφάσεις πελάτη</h2>
+${REVS.length ? REVS.map(r => `<div class="rev ${r.rejected ? 'rj' : ''}"><div class="hd"><b>${esc(r.name || r.username)}</b> · ${fmtDT(r.updated)}${r.rejected ? ' · <b class="bad">ΑΠΟΡΡΙΨΗ</b>' : ''}${r.approved ? ' · <b style="color:#8250df">ΕΓΚΡΙΣΗ για Φάση Β</b>' : ''}</div>${r.remarks ? `<div class="pre">${esc(r.remarks)}</div>` : ''}</div>`).join('')
+  : '<div class="empty">Καμία παρατήρηση.</div>'}
+</section>
+
+<footer><span>PlotManager</span><span>${esc(title)} · ${now}</span></footer>
+</div>
+
+</body></html>`;
+  let secNo = 0; html = html.replace(/<h2>\d+\. /g, () => `<h2>${++secNo}. `);   // αρίθμηση χωρίς κενά
+  w.document.open(); w.document.write(html); w.document.close();
+  if (has) {
+    const init = `var m = L.map('rmap', { zoomControl: false }).setView([${lat}, ${lng}], 17);
+var osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors' }).addTo(m);
+var ko = ${ktimaOpts}; ko.crs = L.CRS.EPSG4326;
+var kt = L.tileLayer.wms(${JSON.stringify(CFG.ktimaWms)}, ko);
+var areas = ${JSON.stringify(nearAreas.map(a => ({ c: a.coords, k: a.color })))};
+areas.forEach(function (a) { L.polygon(a.c, { color: a.k, weight: 2.5, opacity: .95, fill: false, interactive: false }).addTo(m); });
+L.circleMarker([${lat}, ${lng}], { radius: 9, color: '#cf222e', weight: 3, fillColor: '#cf222e', fillOpacity: .25 }).addTo(m);
+var pois = ${JSON.stringify((P.markers || []).map(mk => ({ lat: mk.lat, lng: mk.lng, label: esc(mk.label || '—'), html: poiSvg(mk.color) })))};
+pois.forEach(function (p) {
+  L.marker([p.lat, p.lng], { icon: L.divIcon({ className: 'poi-ico', html: p.html, iconSize: [24, 32], iconAnchor: [12, 31], tooltipAnchor: [0, -29] }), keyboard: false })
+    .bindTooltip(p.label, { permanent: true, direction: 'top', className: 'poi-lbl' }).addTo(m);
+});
+if (pois.length) m.fitBounds(L.latLngBounds([[${lat}, ${lng}]].concat(pois.map(function (p) { return [p.lat, p.lng]; }))).pad(0.2), { maxZoom: 18 });
+L.control.scale({ imperial: false }).addTo(m);
+function base(i) {
+  if (i) { m.removeLayer(osm); kt.addTo(m); } else { m.removeLayer(kt); osm.addTo(m); }
+  document.getElementById('bOsm').classList.toggle('on', !i); document.getElementById('bKt').classList.toggle('on', !!i);
+}
+window.addEventListener('beforeprint', function () { m.invalidateSize(); });
+${addRuler.toString()}
+addRuler(m, document);
+`;
+    const sc = w.document.createElement('script');
+    sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+    sc.onload = () => { const s2 = w.document.createElement('script'); s2.textContent = init; w.document.body.appendChild(s2); };
+    // χωρίς βιβλιοθήκη χάρτη (π.χ. χωρίς διαδίκτυο): μήνυμα αντί για κενό πλαίσιο
+    sc.onerror = () => { const r = w.document.getElementById('rmap'); if (r) r.innerHTML = '<div class="empty" style="padding:30px;text-align:center">Ο χάρτης δεν φορτώθηκε (χωρίς σύνδεση στο διαδίκτυο;)</div>'; };
+    w.document.body.appendChild(sc);
+  }
+}
+
+// ===================== ΣΥΜΒΑΣΗ: ΦΑΣΕΙΣ / ΕΡΓΑΣΙΕΣ / ΕΛΕΓΧΟΙ / ΟΙΚΟΝΟΜΙΚΑ =====================
+const PHASES = [['A', 'Φάση Α', 'b'], ['approval', 'Αναμονή έγκρισης', 'o'], ['B', 'Φάση Β', 'p'], ['done', 'Ολοκληρώθηκε', 'g'], ['rejected', 'Απορρίφθηκε', 'r']];
+const phaseOf = (p) => (p && p.phase) || 'A';
+const phaseLabel = (ph) => (PHASES.find(x => x[0] === ph) || PHASES[0])[1];
+const phaseBadge = (p) => { const x = PHASES.find(y => y[0] === phaseOf(p)) || PHASES[0]; return `<span class="bdg ${x[2]}">${x[1]}</span>`; };
+// Φάση Β ανοιχτή: σε Φάση Β/ολοκληρώθηκε, ή απορρίφθηκε ΑΦΟΥ πέρασε από Φάση Β (τα στοιχεία της τεκμηριώνουν
+// την απόρριψη). Ίδιος κανόνας με τον διακομιστή.
+const partBOpen = (p) => ['B', 'done'].includes(phaseOf(p)) || !!(p && p.b_opened)
+  || (phaseOf(p) === 'rejected' && !!(p && p.tasks && p.tasks.B2 && p.tasks.B2.status === 'done'));
+const TASK_ST = [['', 'Εκκρεμεί'], ['progress', 'Σε εξέλιξη'], ['done', 'Ολοκληρώθηκε'], ['na', 'Δεν απαιτείται']];
+const TASK_GROUPS = [
+  { part: 'A', code: 'Α', title: 'Εντοπισμός και πρώτη επαφή', tasks: [
+    ['A1', 'Α.1', 'Αναζήτηση αγγελιών οικοπέδων στις περιοχές ενδιαφέροντος'],
+    ['A2', 'Α.2', 'Πρώτος έλεγχος κριτηρίων απόστασης και πλάτους οδού σε χάρτη'],
+    ['A3', 'Α.3', 'Επικοινωνία με ιδιοκτήτες ή μεσίτες'],
+    ['A4', 'Α.4', 'Αυτοψία στο ακίνητο, παρουσία ιδιοκτήτη ή μεσίτη']] },
+  { part: 'A', code: 'Β', title: 'Προκαταρκτική αξιολόγηση', tasks: [
+    ['B1', 'Β.1', 'Προκαταρκτική ανάκτηση όρων δόμησης και υπολογισμός εκμετάλλευσης'],
+    ['B2', 'Β.2', 'Προκαταρκτική έγκριση της θέσης από τον πελάτη']] },
+  { part: 'B', code: 'Γ', title: 'Αναλυτικός τεχνικός έλεγχος', tasks: [
+    ['G1', 'Γ.1', 'Ανάκτηση των ισχυόντων όρων και περιορισμών δόμησης και ακριβής υπολογισμός της οικοδομικής εκμετάλλευσης'],
+    ['G2', 'Γ.2', 'Ανάκτηση στοιχείων Κτηματολογίου, Πράξης Εφαρμογής και εφαρμογής του ρυμοτομικού σχεδίου, με επιτόπια επαλήθευση των ορίων με γεωδαιτικό GPS'],
+    ['G3', 'Γ.3', 'Έλεγχος επάρκειας των στοιχείων και εντοπισμός προβλημάτων για την οικοδομική εκμετάλλευση'],
+    ['G4', 'Γ.4', 'Τεκμηρίωση των κριτηρίων της σύμβασης: αποστάσεις από το εμπορικό κέντρο και το θαλάσσιο μέτωπο, πλάτος οδού (κατά το ρυμοτομικό σχέδιο και επί τόπου)'],
+    ['G5', 'Γ.5', 'Καταγραφή του τρόπου πρόσβασης στη θέση: αποστάσεις από σταθμούς μετρό και τραμ, γραμμές λεωφορείων κ.λπ.']] },
+  { part: 'B', code: 'Δ', title: 'Οικονομοτεχνική αξιολόγηση', tasks: [
+    ['D1', 'Δ.1', 'Οικοδομική δραστηριότητα και τιμές πώλησης νέων {gpl}'],
+    ['D2', 'Δ.2', 'Οικονομοτεχνική ανάλυση του οικοπέδου']] },
+];
+const CHECKS = [
+  ['c1', 'Αρτιότητα και οικοδομησιμότητα του οικοπέδου'],
+  ['c2', 'Επιτρεπόμενες χρήσεις γης'],
+  ['c3', 'Ελλιπές Κτηματολόγιο ή λάθος Πράξη Εφαρμογής'],
+  ['c4', 'Εξόφληση εισφοράς σε γη και σε χρήμα'],
+  ['c5', 'Μη οριοθετημένα ρέματα'],
+  ['c6', 'Εγκεκριμένες στάθμες και υψομετρικά'],
+  ['c7', 'Πλημμυρικός κίνδυνος'],
+  ['c8', 'Δασικός χάρτης, αρχαιολογικές ζώνες, ζώνη αιγιαλού/παραλίας'],
+  ['c9', 'Ρυμοτομικές απαλλοτριώσεις και προκήπια'],
+  ['c10', 'Δουλείες και δίκτυα επί του οικοπέδου'],
+  ['c11', 'Ύπαρξη κτισμάτων, ανάγκη και εκτίμηση κόστους κατεδάφισης (και πιθανή υπαγωγή στον Ν.4495/17)'],
+  ['c12', 'Ύπαρξη αποχετευτικού δικτύου'],
+  ['c13', 'Δυσκολία στις εκσκαφές (υπέδαφος, υδροφόρος ορίζοντας)'],
+  ['c14', 'Κλίσεις του οικοπέδου'],
+];
+const CHECK_ST = [['', '—'], ['ok', '✓ ΟΚ'], ['problem', '⚠ Πρόβλημα'], ['na', 'Δ/Α']];
+// Κριτήρια βαθμολόγησης (Ε.1): [κλειδί, τίτλος, βάρος %]. Τα βάρη εδώ είναι οι προεπιλογές·
+// η applyProjectSettings τα αντικαθιστά με του τρέχοντος έργου.
+const SCORE_CRITERIA = [
+  ['loc', 'Θέση και πρόσβαση', 25],
+  ['plan', 'Πολεοδομική καταλληλότητα', 25],
+  ['tech', 'Τεχνικά ζητήματα (Γ.3)', 20],
+  ['econ', 'Οικονομοτεχνικά', 20],
+  ['env', 'Περιβάλλον, θέα, γειτονιά', 10],
+];
+
+function taskStats(P) {
+  const r = { A: { n: 0, d: 0, h: 0 }, B: { n: 0, d: 0, h: 0 } };
+  for (const g of TASK_GROUPS) for (const [k] of g.tasks) {
+    const t = (P.tasks || {})[k] || {}, x = r[g.part];
+    x.n++; if (t.status === 'done' || t.status === 'na') x.d++; x.h += num(t.hours) || 0;
+  }
+  return r;
+}
+function checksSummary(P) {
+  const r = { ok: 0, problem: 0, na: 0, open: 0 };
+  for (const [k] of CHECKS) { const st = ((P.checks || {})[k] || {}).state || ''; if (st) r[st]++; else r.open++; }
+  return r;
+}
+// πόσα κριτήρια έχουν βαθμό: η σταθμισμένη βαθμολογία είναι μέσος όρος μόνο αυτών,
+// άρα με λιγότερα από όλα είναι «μερική» και σημειώνεται με *
+const scoreCount = (P) => SCORE_CRITERIA.filter(([k]) => num((P.scores || {})[k]) !== null).length;
+const scorePartial = (P) => { const n = scoreCount(P); return n > 0 && n < SCORE_CRITERIA.length; };
+function scoreTotal(P) {
+  let s = 0, w = 0;
+  for (const [k, , wt] of SCORE_CRITERIA) { const v = num((P.scores || {})[k]); if (v !== null) { s += v * wt; w += wt; } }
+  return w ? s / w : null;
+}
+// Κριτήρια σύμβασης: τιμές Γ.4 (τεκμηριωμένες) ή, αν λείπουν, του πρώτου ελέγχου Α.2 (προκαταρκτικές)
+function critEval(P) {
+  const L = CFG.contract;
+  const pick = (main, pre) => { const a = num(main); if (a !== null) return [a, false]; const b = num(pre); return [b, b !== null]; };
+  const [dc, pc] = pick(P.dist_center, P.crit_distance);
+  const [ds, ps] = pick(P.dist_sea, P.crit_dist_sea);
+  const rws = [num(P.road_width_plan), num(P.road_width_site)].filter(x => x !== null);
+  const [rw, pr] = rws.length ? [Math.min(...rws), false] : pick(null, P.crit_road_width);
+  const okC = dc === null ? null : dc < L.center_km, okS = ds === null ? null : ds < L.sea_km, okR = rw === null ? null : rw > L.road_m;
+  const all = [okC, okS, okR].includes(false) ? false : ([okC, okS, okR].every(x => x === true) ? true : null);
+  return { dc, ds, rw, okC, okS, okR, all, pre: { c: pc, s: ps, r: pr }, prelim: pc || ps || pr };
+}
+function econCalc(P) {
+  const { usable } = calcTerms(P);
+  const price = num(P.price), sale = num(P.new_sale_m2), bc = num(P.build_cost_m2), other = num(P.other_costs) || 0;
+  const ppb = price !== null && usable ? price / usable : null;
+  const build = usable !== null && bc !== null ? usable * bc : null;
+  const total = price !== null && build !== null ? price + build + other : null;
+  const value = usable !== null && sale !== null ? usable * sale : null;
+  const margin = value !== null && total !== null ? value - total : null;
+  const marginPct = margin !== null && total ? margin / total * 100 : null;
+  return { usable, price, ppb, build, other, total, value, margin, marginPct };
+}
+
+// --- καρτέλα Εργασίες ---
+function tabTasks(b) {
+  const own = CUR_REVIEWS.filter(r => !r.foreign);   // αποφάσεις μόνο από το τρέχον έργο
+  const ap = own.filter(r => r.approved), rj = own.filter(r => r.rejected);
+  const names = (a) => a.map(r => r.name || r.username).join(', ');
+  b.innerHTML = `
+  <fieldset><legend>Φάση</legend><div class="grid">
+    ${F('Φάση οικοπέδου', 'phase', 'select', { options: PHASES.map(x => [x[0], x[1]]) })}
+    <div class="fld"><span>Αποφάσεις πελάτη (Β.2)</span><div class="badges">
+      ${ap.length ? `<span class="bdg p">ΕΓΚΡΙΣΗ: ${esc(names(ap))}</span>` : ''}
+      ${rj.length ? `<span class="bdg r">ΑΠΟΡΡΙΨΗ: ${esc(names(rj))}</span>` : ''}
+      ${!ap.length && !rj.length ? '<span class="note">Καμία ακόμη</span>' : ''}</div></div>
+  </div>
+  ${isAdmin() && !partBOpen(CUR) && ap.length ? `<div class="row" style="margin-top:8px"><button class="btn primary sm" onclick="setPhase('B')">▶ Έναρξη Φάσης Β</button><span class="note">ο πελάτης έχει εγκρίνει</span></div>` : ''}
+  ${isAdmin() && phaseOf(CUR) === 'A' && !ap.length ? `<div class="row" style="margin-top:8px"><button class="btn sm" onclick="setPhase('approval')">Αποστολή για έγκριση</button><span class="note">μετά το Β.1</span></div>` : ''}
+  </fieldset>
+  <div id="taskSummary"></div>
+  ${TASK_GROUPS.map(g => {
+    const locked = g.part === 'B' && !partBOpen(CUR);
+    return `<fieldset class="${locked ? 'locked' : ''}"><legend>${g.part === 'A' ? 'Φάση Α' : 'Φάση Β'} · ${g.code}. ${g.title}</legend>
+      ${locked ? '<div class="note" style="margin-bottom:6px">🔒 Ανοίγει στη Φάση Β, μετά την έγκριση του πελάτη.</div>' : ''}
+      ${g.tasks.map(([k, code, title]) => taskRow(k, code, title, locked)).join('')}</fieldset>`;
+  }).join('')}`;
+  renderTaskSummary();
+}
+function taskRow(k, code, title, locked) {
+  const t = (CUR.tasks || {})[k] || {}, st = t.status || '', adm = isAdmin(), dis = (!adm || locked) ? 'disabled' : '';
+  return `<div class="task st-${st || 'todo'}">
+    <div class="task-h"><b>${code}</b>${esc(btText(title))}</div>
+    <div class="task-f ${adm ? '' : 'u'}">
+      <select data-k="tasks.${k}.status" ${dis}>${TASK_ST.map(([v, l]) => `<option value="${v}" ${st === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+      <input type="date" data-k="tasks.${k}.date" value="${esc(t.date || '')}" ${dis}>
+      ${adm ? `<input type="text" inputmode="decimal" data-k="tasks.${k}.hours" data-num="1" placeholder="ώρες" title="Ώρες εργασίας (βλέπει μόνο ο διαχειριστής)" value="${t.hours == null ? '' : String(t.hours).replace('.', ',')}" ${dis}>` : ''}
+    </div>
+    ${adm && !locked ? `<input type="text" data-k="tasks.${k}.notes" placeholder="Σημειώσεις (τις βλέπει και ο πελάτης)" value="${esc(t.notes || '')}">` : (t.notes ? `<div class="note">${esc(t.notes)}</div>` : '')}
+  </div>`;
+}
+function renderTaskSummary() {
+  const box = $('taskSummary'); if (!box) return;
+  const ts = taskStats(CUR);
+  const row = (lbl, x) => `<span>${lbl}</span><div class="bar"><i style="width:${x.n ? x.d / x.n * 100 : 0}%"></i></div>
+    <span>${x.d}/${x.n}${isAdmin() ? ` · ${fmt(x.h, 1)} ώρ.` : ''}</span>`;
+  box.innerHTML = `<div class="prog">${row('Φάση Α', ts.A)}${row('Φάση Β', ts.B)}
+    ${isAdmin() ? `<span></span><span class="note">Σύνολο ωρών (μόνο για τον διαχειριστή)</span><b>${fmt(ts.A.h + ts.B.h, 1)} ώρ.</b>` : ''}</div>`;
+}
+// Κοινοί κανόνες αλλαγής φάσης (κουμπί ή λίστα επιλογής)
+function applyPhaseRules(ph) {
+  if (ph !== 'B') return;
+  const t = CUR.tasks.B2 = CUR.tasks.B2 || {};       // η έγκριση του πελάτη ολοκληρώνει το Β.2
+  if (t.status !== 'done') { t.status = 'done'; t.date = t.date || todayLocal(); }
+  const names = CUR_REVIEWS.filter(r => r.approved && !r.foreign).map(r => r.name || r.username);
+  if (!t.notes) t.notes = names.length ? 'Έγκριση: ' + names.join(', ') : 'Έναρξη Φάσης Β από τον διαχειριστή';
+}
+async function setPhase(ph) { CUR.phase = ph; applyPhaseRules(ph); markDirty(); await savePlot(); }
+
+// --- καρτέλα Τεχνικός έλεγχος (Γ.3–Γ.5) ---
+const B_HIDDEN = '<div class="banner">Το περιεχόμενο αυτής της καρτέλας ανήκει στη Φάση Β και θα εμφανιστεί μετά την έγκριση της Φάσης Α.</div>';
+function tabTech(b) {
+  if (!isAdmin() && !partBOpen(CUR)) { b.innerHTML = B_HIDDEN; return; }
+  b.innerHTML = `
+  ${partBOpen(CUR) ? '' : '<div class="banner">Ο αναλυτικός τεχνικός έλεγχος ανήκει στη Φάση Β και γίνεται μετά την έγκριση του πελάτη.</div>'}
+  <fieldset><legend>Γ.3 Έλεγχος επάρκειας στοιχείων και εντοπισμός προβλημάτων</legend>
+    <div id="checkSum" style="margin-bottom:4px">${checkSumHtml(CUR)}</div>
+    ${CHECKS.map(([k, label]) => {
+      const c = (CUR.checks || {})[k] || {}, dis = isAdmin() ? '' : 'disabled';
+      return `<div class="chkrow cs-${c.state || 'none'}"><div class="cl">${esc(label)}</div>
+        <select data-k="checks.${k}.state" ${dis}>${CHECK_ST.map(([v, l]) => `<option value="${v}" ${(c.state || '') === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+        ${isAdmin() ? `<input type="text" data-k="checks.${k}.note" placeholder="Σχόλιο (το βλέπει και ο πελάτης)" value="${esc(c.note || '')}">` : (c.note ? `<div class="note">${esc(c.note)}</div>` : '')}</div>`;
+    }).join('')}
+  </fieldset>
+  <fieldset><legend>Γ.4 Τεκμηρίωση κριτηρίων σύμβασης</legend><div class="grid">
+    ${F('Απόσταση από εμπορικό κέντρο (km)', 'dist_center', 'num')}${F('Απόσταση από θαλάσσιο μέτωπο (km)', 'dist_sea', 'num')}
+    ${F('Πλάτος οδού κατά ρυμοτομικό (m)', 'road_width_plan', 'num')}${F('Πλάτος οδού επί τόπου (m)', 'road_width_site', 'num')}
+  </div><div id="critBox" style="margin-top:8px">${critTable(CUR)}</div></fieldset>
+  <fieldset><legend>Γ.5 Πρόσβαση</legend><div class="grid">
+    ${F('Μετρό (σταθμός, απόσταση)', 'access_metro')}${F('Τραμ (στάση, απόσταση)', 'access_tram')}
+    ${F('Λεωφορεία (γραμμές, στάσεις)', 'access_bus', 'text', { full: true })}
+    ${F('Σημειώσεις πρόσβασης', 'access_notes', 'textarea', { rows: 2 })}
+  </div></fieldset>`;
+}
+function checkSumHtml(P) {
+  const c = checksSummary(P);
+  return `<div class="badges"><span class="bdg g">✓ ${c.ok}</span><span class="bdg r">⚠ ${c.problem}</span><span class="bdg">Δ/Α ${c.na}</span><span class="bdg">ανέλεγκτα ${c.open}</span></div>`;
+}
+function critTable(P) {
+  const e = critEval(P), L = CFG.contract, f = (x, u, pre) => x === null ? '—' : fmt(x, 2) + ' ' + u + (pre ? '*' : '');
+  return `<table class="calc">
+    <tr><td>Απόσταση από εμπορικό κέντρο &lt; ${L.center_km} km</td><td>${f(e.dc, 'km', e.pre.c)} · ${chk(e.okC)}</td></tr>
+    <tr><td>Απόσταση από θαλάσσιο μέτωπο &lt; ${L.sea_km} km</td><td>${f(e.ds, 'km', e.pre.s)} · ${chk(e.okS)}</td></tr>
+    <tr><td>Πλάτος οδού &gt; ${L.road_m} m${num(P.road_width_plan) !== null && num(P.road_width_site) !== null ? ' (το μικρότερο από ρυμοτομικό/επί τόπου)' : ''}</td><td>${f(e.rw, 'm', e.pre.r)} · ${chk(e.okR)}</td></tr>
+    <tr><td><b>Πληροί τα κριτήρια της σύμβασης</b></td><td>${chk(e.all)}</td></tr>
+  </table>${e.prelim ? '<div class="note" style="margin-top:4px">* προκαταρκτική τιμή από τον πρώτο έλεγχο (Α.2) — τεκμηριώνεται στο Γ.4</div>' : ''}`;
+}
+
+// --- καρτέλα Οικονομικά (Δ) + Βαθμολογία (Ε.1) ---
+function tabEcon(b) {
+  if (!isAdmin() && !partBOpen(CUR)) { b.innerHTML = B_HIDDEN; return; }
+  b.innerHTML = `
+  ${partBOpen(CUR) ? '' : '<div class="banner">Η οικονομοτεχνική αξιολόγηση ανήκει στη Φάση Β και γίνεται μετά την έγκριση του πελάτη.</div>'}
+  <fieldset><legend>Δ.1 Οικοδομική δραστηριότητα περιοχής</legend>
+    ${F('Παρατηρήσεις αγοράς (νέες οικοδομές, τιμές πώλησης, ζήτηση)', 'market_notes', 'textarea', { rows: 4 })}
+  </fieldset>
+  <fieldset><legend>Δ.2 Οικονομοτεχνική ανάλυση</legend><div class="grid">
+    ${F('Τιμή πώλησης νέων ' + esc(BT().gpl) + ' (€/m²)', 'new_sale_m2', 'num')}${F('Κόστος κατασκευής (€/m²)', 'build_cost_m2', 'num')}
+    ${F('Λοιπά κόστη (€): αμοιβές, άδειες, κατεδάφιση κ.λπ.', 'other_costs', 'num', { full: true })}
+  </div><div id="econBox" style="margin-top:8px">${econTable(CUR)}</div></fieldset>
+  <fieldset><legend>Βαθμολόγηση (Ε.1)</legend>
+    <div class="grid">${SCORE_CRITERIA.map(([k, l, w]) => F(`${l} <span class="note">(βάρος ${w}%)</span> · 0–10`, 'scores.' + k, 'num')).join('')}</div>
+    <div id="scoreBox" style="margin-top:8px">${scoreHtml(CUR)}</div>
+  </fieldset>`;
+}
+function econTable(P) {
+  const e = econCalc(P), m = (x, d = 0) => x === null ? '—' : fmt(x, d) + ' €';
+  return `<table class="calc">
+    <tr><td>Αξιοποιήσιμη δόμηση (από Όρους δόμησης)</td><td>${e.usable === null ? '—' : fmt(e.usable, 1) + ' m²'}</td></tr>
+    <tr><td>Τιμή οικοπέδου</td><td>${m(e.price)}</td></tr>
+    <tr><td><b>Τιμή ανά m² δομήσιμης επιφάνειας</b></td><td>${e.ppb === null ? '—' : fmt(e.ppb, 0) + ' €/m²'}</td></tr>
+    <tr><td>Εκτιμώμενο κόστος κατασκευής</td><td>${m(e.build)}</td></tr>
+    <tr><td>Λοιπά κόστη</td><td>${m(e.other)}</td></tr>
+    <tr><td>Συνολικό κόστος</td><td>${m(e.total)}</td></tr>
+    <tr><td>Εκτιμώμενη αξία πώλησης</td><td>${m(e.value)}</td></tr>
+    <tr><td><b>Περιθώριο</b></td><td>${e.margin === null ? '—' : `<span class="${e.margin >= 0 ? 'ok' : 'bad'}">${m(e.margin)} (${fmt(e.marginPct, 1)}%)</span>`}</td></tr>
+  </table><div class="note" style="margin-top:4px">Η αξία πώλησης υπολογίζεται επί της αξιοποιήσιμης δόμησης. Ενδεικτική ανάλυση.</div>`;
+}
+function scoreHtml(P) {
+  const t = scoreTotal(P), n = scoreCount(P);
+  return `<table class="calc"><tr><td><b>Σταθμισμένη βαθμολογία</b> <span class="note">(${n}/${SCORE_CRITERIA.length} κριτήρια)</span></td><td>${t === null ? '—' : fmt(t, 2) + ' / 10'}</td></tr></table>`;
+}
+
+// Οι απαντήσεις ημερολογίου/συνδέσμων φέρνουν και τη νέα έκδοση (rev) του οικοπέδου. Την υιοθετούμε ΜΟΝΟ αν
+// είναι η αμέσως επόμενη (δηλ. η αλλαγή ήταν μόνο η δική μας): αν στο μεταξύ άλλαξε κάτι άλλος, κρατάμε την παλιά,
+// ώστε η επόμενη Αποθήκευση να δείξει σύγκρουση αντί να σβήσει σιωπηλά τις αλλαγές του.
+function adoptRev(r) { if (r.rev === (CUR.rev || 0) + 1) { CUR.rev = r.rev; CUR.updated = r.updated; } }
+function applyEv(r) { CUR.events = r.events; adoptRev(r); }
+function applyLk(r) { CUR.links = r.links; adoptRev(r); }
+// Αίτημα για το ανοιχτό οικόπεδο: αν στο μεταξύ άνοιξε άλλο, η απάντηση ΔΕΝ εφαρμόζεται στο νέο
+async function plotReq(path, opts, apply) {
+  const id = CUR.id;
+  const r = await api(`plots/${id}/${path}`, opts);
+  if (!CUR || CUR.id !== id) return false;
+  apply(r); renderDetail(); return true;
+}
+
+// --- Ημερολόγιο ---
+function tabDiary(b) {
+  const evs = [...(CUR.events || [])].sort((a, c) => String(c.date || '').localeCompare(String(a.date || '')));
+  const today = todayLocal();
+  b.innerHTML = `
+  ${isAdmin() ? `<fieldset><legend>Νέα εργασία</legend><div class="grid">
+      <label class="fld"><span>Ημερομηνία</span><input type="date" id="evDate" value="${today}"></label>
+      <label class="fld"><span>Εργασία</span><input type="text" id="evTitle" placeholder="π.χ. Αυτοψία, Αίτηση στην ΥΔΟΜ…"></label>
+      <label class="fld full"><span>Σημειώσεις</span><textarea id="evNotes" rows="2"></textarea></label>
+      <label class="chk"><input type="checkbox" id="evDone"><span>Ολοκληρώθηκε</span></label>
+      <div class="row" style="justify-content:flex-end"><button class="btn primary sm" onclick="addEvent()">Προσθήκη</button></div>
+    </div></fieldset>` : ''}
+  ${evs.length ? evs.map(e => `
+    <div class="ev ${e.done ? 'done' : ''}">
+      <div class="row" style="justify-content:space-between">
+        <span class="d">${fmtDate(e.date)} ${e.done ? '· <span class="ok">ολοκληρώθηκε</span>' : '· <span style="color:var(--orange)">εκκρεμεί</span>'}</span>
+        ${isAdmin() ? `<span class="row"><button class="btn sm" onclick="toggleEvent('${e.id}')">${e.done ? 'Επαναφορά' : '✓ Ολοκλήρωση'}</button>
+          <button class="btn danger sm" onclick="delEvent('${e.id}')">✕</button></span>` : ''}
+      </div>
+      <div class="t">${esc(e.title)}</div>${e.notes ? `<div class="n">${esc(e.notes)}</div>` : ''}
+    </div>`).join('') : '<div class="empty">Δεν υπάρχουν εγγραφές ημερολογίου</div>'}`;
+}
+async function addEvent() {
+  const body = { date: $('evDate').value, title: $('evTitle').value.trim(), notes: $('evNotes').value, done: $('evDone').checked };
+  if (!body.title) return toast('Συμπληρώστε την εργασία', 'err');
+  try { await plotReq('events', { method: 'POST', body }, applyEv); toast('Προστέθηκε', 'ok'); }
+  catch (e) { toast(e.message, 'err'); }
+}
+async function toggleEvent(eid) {
+  const ev = CUR.events.find(e => e.id === eid); if (!ev) return;
+  try { await plotReq(`events/${eid}`, { method: 'PUT', body: { done: !ev.done } }, applyEv); }
+  catch (e) { toast(e.message, 'err'); }
+}
+async function delEvent(eid) {
+  if (!confirm('Διαγραφή εγγραφής;')) return;
+  try { await plotReq(`events/${eid}`, { method: 'DELETE' }, applyEv); }
+  catch (e) { toast(e.message, 'err'); }
+}
+
+// --- Αρχεία (σύνδεσμοι Dropbox) ---
+function rawUrl(u) {
+  try {
+    const x = new URL(safeUrl(u));
+    if (/(^|\.)dropbox\.com$/i.test(x.hostname)) { x.searchParams.delete('dl'); x.searchParams.set('raw', '1'); }
+    return x.toString();
+  } catch { return ''; }
+}
+function tabFiles(b) {
+  const links = CUR.links || [];
+  const photos = links.filter(l => l.kind === 'photo'), docs = links.filter(l => l.kind !== 'photo');
+  b.innerHTML = `
+  ${CUR.dropbox ? `<div style="margin-bottom:10px"><a class="btn sm" target="_blank" rel="noopener" href="${esc(safeUrl(CUR.dropbox))}">📂 Φάκελος Dropbox του οικοπέδου ↗</a></div>` : ''}
+  ${isAdmin() ? `<fieldset><legend>Νέος σύνδεσμος Dropbox</legend><div class="grid">
+      <label class="fld"><span>Τύπος</span><select id="lkKind"><option value="photo">Φωτογραφία</option><option value="doc">Έγγραφο / αρχείο</option></select></label>
+      <label class="fld"><span>Τίτλος</span><input type="text" id="lkTitle" placeholder="π.χ. Τοπογραφικό, Πρόσοψη"></label>
+      <label class="fld full"><span>Σύνδεσμος (Share link του Dropbox)</span><input type="url" id="lkUrl" placeholder="https://www.dropbox.com/scl/fi/…"></label>
+      <div class="full row" style="justify-content:flex-end"><button class="btn primary sm" onclick="addLink()">Προσθήκη</button></div>
+    </div></fieldset>` : ''}
+  <h4 style="margin:6px 0">Φωτογραφίες (${photos.length})</h4>
+  ${photos.length ? `<div class="photos">${photos.map(l => `
+    <div class="ph-item">
+      <img src="${esc(rawUrl(l.url))}" alt="${esc(l.title)}" loading="lazy" onclick="openLightbox(this.src)" onerror="this.style.opacity=.2">
+      <div class="cap"><a target="_blank" rel="noopener" href="${esc(safeUrl(l.url))}">${esc(l.title)}</a></div>
+      ${isAdmin() ? `<button class="btn danger sm x" onclick="delLink('${l.id}')">✕</button>` : ''}
+    </div>`).join('')}</div>` : '<div class="note" style="margin-bottom:12px">Καμία φωτογραφία</div>'}
+  <h4 style="margin:6px 0">Έγγραφα (${docs.length})</h4>
+  ${docs.length ? docs.map(l => `
+    <div class="doc">📄 <a target="_blank" rel="noopener" href="${esc(safeUrl(l.url))}">${esc(l.title)}</a>
+      <span class="note">${fmtDate(l.created)}</span>
+      ${isAdmin() ? `<button class="btn danger sm" onclick="delLink('${l.id}')">✕</button>` : ''}</div>`).join('') : '<div class="note">Κανένα έγγραφο</div>'}`;
+}
+function openLightbox(src) { $('lbImg').src = src; $('lightbox').classList.remove('hidden'); }
+async function addLink() {
+  const body = { kind: $('lkKind').value, title: $('lkTitle').value.trim(), url: $('lkUrl').value.trim() };
+  if (!body.url) return toast('Επικολλήστε τον σύνδεσμο', 'err');
+  try { await plotReq('links', { method: 'POST', body }, applyLk); toast('Προστέθηκε', 'ok'); }
+  catch (e) { toast(e.message, 'err'); }
+}
+async function delLink(lid) {
+  if (!confirm('Αφαίρεση συνδέσμου; (Το αρχείο στο Dropbox δεν διαγράφεται.)')) return;
+  try { await plotReq(`links/${lid}`, { method: 'DELETE' }, applyLk); }
+  catch (e) { toast(e.message, 'err'); }
+}
+
+// --- Παρατηρήσεις και αποφάσεις ΕΓΚΡΙΣΗ / ΑΠΟΡΡΙΨΗ ---
+function tabReview(b) {
+  const mine = CUR_REVIEWS.find(r => r.username === ME.username) || {};
+  const others = CUR_REVIEWS.filter(r => r.username !== ME.username);
+  b.innerHTML = `
+  <fieldset><legend>Οι παρατηρήσεις μου</legend>
+    <label class="fld full"><span>Παρατηρήσεις</span><textarea id="rvText" rows="5" placeholder="Γράψτε τις παρατηρήσεις σας για το οικόπεδο…">${esc(mine.remarks || '')}</textarea></label>
+    <div class="row" style="justify-content:space-between;margin-top:6px">
+      <span class="row ${isAdmin() ? 'hidden' : ''}" style="gap:16px">
+        <label class="chk red"><input type="checkbox" id="rvRej" ${mine.rejected ? 'checked' : ''} onchange="if(this.checked)$('rvApp').checked=false"><span>ΑΠΟΡΡΙΨΗ</span></label>
+        <label class="chk purple"><input type="checkbox" id="rvApp" ${mine.approved ? 'checked' : ''} onchange="if(this.checked)$('rvRej').checked=false"><span>ΕΓΚΡΙΣΗ για Φάση Β</span></label>
+      </span>
+      <button class="btn success sm" onclick="saveReview()">Αποθήκευση</button>
+    </div>
+    <div class="note">${isAdmin() ? 'Ο διαχειριστής γράφει παρατηρήσεις· οι αποφάσεις ΑΠΟΡΡΙΨΗ/ΕΓΚΡΙΣΗ ανήκουν στον πελάτη. Η απόρριψη από τον διαχειριστή γίνεται από τη φάση ή τα κριτήρια.' : 'Η ΕΓΚΡΙΣΗ σημαίνει ότι συμφωνείτε να προχωρήσει ο αναλυτικός έλεγχος (Φάση Β) για αυτό το οικόπεδο.'}</div>
+    ${mine.updated ? `<div class="note">Τελευταία αποθήκευση: ${fmtDT(mine.updated)}</div>` : ''}
+  </fieldset>
+  <h4 style="margin:6px 0">Παρατηρήσεις όλων (${others.length})</h4>
+  ${others.length ? others.map(r => `
+    <div class="rev"><div class="hd"><b>${esc(r.name || r.username)}</b><span>${fmtDT(r.updated)}</span>
+      ${r.rejected ? '<span class="bdg r">ΑΠΟΡΡΙΨΗ</span>' : ''}${r.approved ? '<span class="bdg p">ΕΓΚΡΙΣΗ</span>' : ''}
+      ${r.foreign ? '<span class="bdg" title="Γράφτηκε πριν μεταφερθεί το οικόπεδο· δεν τη βλέπουν οι χρήστες του τρέχοντος έργου και δεν μετρά">από προηγούμενο έργο</span>' : ''}</div>
+      ${r.remarks ? `<div class="tx">${esc(r.remarks)}</div>` : ''}</div>`).join('') : '<div class="note">Καμία άλλη παρατήρηση</div>'}`;
+}
+async function saveReview() {
+  try {
+    await plotReq('review', { method: 'PUT', body: { remarks: $('rvText').value, rejected: $('rvRej').checked, approved: $('rvApp').checked } },
+      (rec) => { CUR_REVIEWS = [rec, ...CUR_REVIEWS.filter(r => r.username !== ME.username)]; });
+    await loadPlots(); if (CUR) renderDetail(); renderMarkers(); toast('Αποθηκεύτηκε', 'ok');
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+// --- αποθήκευση / διαγραφή ---
+const PLOT_FIELDS = ['code','title','address','municipality','area','price','kaek','description','dropbox','lat','lng',
+  'contact_name','contact_phone','contact_email','contact_type','crit_checked','crit_distance','crit_road_width','crit_rejected','crit_notes',
+  'zone','sd','coverage','max_height','max_floors','frontage','min_area','min_frontage','units','terms_notes',
+  'phase','dist_center','dist_sea','road_width_plan','road_width_site','access_metro','access_tram','access_bus','access_notes',
+  'market_notes','new_sale_m2','build_cost_m2','other_costs','tasks','checks','scores','crit_dist_sea',
+  'ot','pol_enotita','ydom','pe_number','pe_decision','pe_date','pe_registry','pe_notes','project','markers'];
+let SAVING = false;
+async function savePlot(force) {
+  if (SAVING || !CUR) return;
+  if (CUR.dropbox && !/^https?:\/\//i.test(CUR.dropbox)) return toast('Ο σύνδεσμος Dropbox πρέπει να ξεκινά με https://', 'err');
+  if (document.querySelector('#tabBody input.invalid')) return toast('Διορθώστε τα πεδία με κόκκινο περίγραμμα (μη έγκυρος ή αρνητικός αριθμός, βαθμός πάνω από 10, κάλυψη πάνω από 100%, ώρες πάνω από 1000).', 'err');
+  if ((num(CUR.lat) === null) !== (num(CUR.lng) === null)) return toast('Συμπληρώστε και τις δύο συντεταγμένες ή καμία.', 'err');
+  const body = { base_rev: CUR.rev || 0, force: !!force };
+  const sent = {};                                  // στιγμιότυπο, για να μη χαθεί ό,τι γραφτεί όσο περιμένουμε
+  for (const k of PLOT_FIELDS) if (k in CUR) { body[k] = CUR[k] === undefined ? null : CUR[k]; sent[k] = JSON.stringify(body[k]); }
+  const id = CUR.id;
+  let retry = false, reload = false;
+  SAVING = true;
+  try {
+    const p = await api('plots/' + id, { method: 'PUT', body });
+    if (!CUR || CUR.id !== id) return;              // στο μεταξύ άνοιξε άλλο οικόπεδο
+    // πεδία που άλλαξαν όσο γινόταν η αποθήκευση: κρατάμε τη νεότερη τιμή και μένουν «μη αποθηκευμένα»
+    const later = Object.keys(sent).filter(k => JSON.stringify(CUR[k] === undefined ? null : CUR[k]) !== sent[k]);
+    const keep = {}; for (const k of later) keep[k] = CUR[k];
+    CUR = { ...CUR, ...p, ...keep }; DIRTY = later.length > 0;
+    if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
+    if (CUR.project !== PROJ) {                     // μεταφέρθηκε σε άλλο έργο
+      const to = PROJECTS.find(x => x.id === CUR.project);
+      DIRTY = false; await loadPlots(); renderList(); return toast(`Το οικόπεδο μεταφέρθηκε στο έργο «${to ? to.name : ''}»`, 'ok');
+    }
+    await loadPlots();
+    if (!CUR || CUR.id !== id) return;              // άνοιξε άλλο οικόπεδο όσο ανανεωνόταν η λίστα
+    if (DIRTY) { markDirty(); renderMarkers(); toast('Αποθηκεύτηκε. Οι αλλαγές που κάνατε στο μεταξύ θέλουν νέα Αποθήκευση.'); }
+    else { renderDetail(); renderMarkers(); toast('Αποθηκεύτηκε', 'ok'); }
+  } catch (e) {
+    if (e.status === 409) {
+      const who = e.data && e.data.updated_by ? ` (${e.data.updated_by}, ${fmtDT(e.data.updated)})` : '';
+      if (confirm(`${e.message}${who}\n\nOK: να αποθηκευτούν οι δικές σας αλλαγές πάνω από τις άλλες.\nΆκυρο: να φορτωθεί η νέα έκδοση (οι αλλαγές σας χάνονται).`)) retry = true;
+      else reload = true;
+    } else toast(e.message, 'err');
+  } finally { SAVING = false; }
+  if (retry) return savePlot(true);
+  if (reload && CUR && CUR.id === id) { DIRTY = false; return openPlot(id); }
+}
+async function deletePlot() {
+  if (!confirm(`Οριστική διαγραφή του οικοπέδου «${CUR.title}» μαζί με ημερολόγιο και παρατηρήσεις;`)) return;
+  try { await api('plots/' + CUR.id, { method: 'DELETE' }); DIRTY = false; await loadPlots(); renderList(); toast('Διαγράφηκε', 'ok'); }
+  catch (e) { toast(e.message, 'err'); }
+}
+window.addEventListener('beforeunload', (e) => { if (DIRTY) { e.preventDefault(); e.returnValue = ''; } });
+
+// ===================== MODALS =====================
+function openModal(html, cls = '') { $('modalBox').className = cls; $('modalBox').innerHTML = html; $('modal').classList.remove('hidden'); }
+function closeModal() { $('modal').classList.add('hidden'); }
+
+// --- Βοήθεια: το help.md (οδηγίες χρήσης, χωρίς τεχνικά στοιχεία) εμφανίζεται μέσα στην εφαρμογή ---
+// Μικρός μετατροπέας Markdown (επικεφαλίδες, λίστες, πίνακες, κώδικας, έντονα, σύνδεσμοι), χωρίς εξωτερική βιβλιοθήκη.
+function mdToHtml(src) {
+  const inline = (t) => esc(t)
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+|mailto:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+    .replace(/(^|[\s(])([\w.+-]+@[\w-]+\.[\w.-]+\w)/g, '$1<a href="mailto:$2">$2</a>');
+  const lines = src.replace(/\r/g, '').split('\n'), out = [];
+  const stack = [];                                   // ανοιχτές λίστες: { ind, tag }
+  const closeTo = (ind) => { while (stack.length && stack[stack.length - 1].ind >= ind) out.push(`</li></${stack.pop().tag}>`); };
+  for (let i = 0; i < lines.length; i++) {
+    const ln = lines[i], m = ln.match(/^(\s*)(.*)$/), ind = m[1].length, t = m[2];
+    if (t.startsWith('```')) {                         // μπλοκ κώδικα
+      const buf = []; while (++i < lines.length && !lines[i].trim().startsWith('```')) buf.push(lines[i]);
+      closeTo(0); out.push(`<pre><code>${esc(buf.join('\n'))}</code></pre>`); continue;
+    }
+    if (!t) { continue; }
+    if (t.startsWith('|')) {                           // πίνακας
+      const rows = []; i--;
+      while (++i < lines.length && lines[i].trim().startsWith('|')) rows.push(lines[i].trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim()));
+      i--;
+      const body = rows.filter(r => !r.every(c => /^:?-+:?$/.test(c)));
+      const tbl = `<table>${body.map((r, k) => `<tr>${r.map(c => k ? `<td>${inline(c)}</td>` : `<th>${inline(c)}</th>`).join('')}</tr>`).join('')}</table>`;
+      if (stack.length && ind > 0) out.push(tbl); else { closeTo(0); out.push(tbl); }
+      continue;
+    }
+    if (/^-{3,}$/.test(t) && ind === 0) { closeTo(0); out.push('<hr>'); continue; }
+    const h = t.match(/^(#{1,3})\s+(.*)$/);
+    if (h && ind === 0) { closeTo(0); out.push(`<h${h[1].length}>${inline(h[2])}</h${h[1].length}>`); continue; }
+    const li = t.match(/^([-*]|\d+\.)\s+(.*)$/);
+    if (li) {
+      const tag = /\d/.test(li[1]) ? 'ol' : 'ul';
+      closeTo(ind + 1);
+      const top = stack[stack.length - 1];
+      if (!top || top.ind < ind) { stack.push({ ind, tag }); out.push(`<${tag}><li>`); }
+      else out.push('</li><li>');
+      out.push(inline(li[2])); continue;
+    }
+    if (stack.length && ind > 0) { out.push(' ' + inline(t)); continue; }   // συνέχεια στοιχείου λίστας
+    closeTo(0);
+    out.push(`<p>${inline(t)}</p>`);
+  }
+  closeTo(0);
+  return out.join('');
+}
+async function openHelp() {
+  openModal(`<div class="ph"><h2>Βοήθεια</h2><button class="btn sm" onclick="closeModal()">✕</button></div><div class="mb md" id="helpBody">Φόρτωση…</div>`, 'help');
+  try {
+    const r = await fetch('/help.md', { cache: 'no-cache' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const md = await r.text();
+    if ($('helpBody')) $('helpBody').innerHTML = mdToHtml(md);
+  } catch (e) {
+    if ($('helpBody')) $('helpBody').innerHTML = `<p class="bad">Δεν φορτώθηκε η βοήθεια (${esc(e.message)}). Ελέγξτε τη σύνδεση και δοκιμάστε ξανά.</p>`;
+  }
+}
+
+// --- Χρήστες (admin) ---
+async function openUsers() {
+  openModal(`<div class="ph"><h2>Χρήστες</h2><button class="btn sm" onclick="closeModal()">✕</button></div><div class="mb" id="usersBody">Φόρτωση…</div>`);
+  await renderUsers();
+}
+async function renderUsers() {
+  let list;
+  try { list = USERS_CACHE = await api('users'); } catch (e) { if ($('usersBody')) $('usersBody').innerHTML = `<span class="bad">${esc(e.message)}</span>`; return; }
+  if (!$('usersBody')) return;                     // το παράθυρο έκλεισε όσο φόρτωνε
+  $('usersBody').innerHTML = `
+  <fieldset><legend>Νέος χρήστης</legend><div class="grid">
+    <label class="fld"><span>Όνομα χρήστη (λατινικά)</span><input type="text" id="nuUser" autocapitalize="none"></label>
+    <label class="fld"><span>Ονοματεπώνυμο</span><input type="text" id="nuName"></label>
+    <label class="fld"><span>Κωδικός (≥ 8)</span><input type="text" id="nuPass"></label>
+    <label class="fld"><span>Ρόλος</span><select id="nuRole"><option value="user">Χρήστης</option><option value="admin">Διαχειριστής</option></select></label>
+    <div class="fld full"><span>Πρόσβαση σε έργα</span><div class="pchips">${PROJECTS.map(p => `<label><input type="checkbox" class="nuProj" value="${esc(p.id)}" ${p.id === PROJ ? 'checked' : ''}>${esc(p.name)}</label>`).join('')}</div></div>
+    <div class="full row" style="justify-content:flex-end"><button class="btn primary sm" onclick="addUser()">Δημιουργία</button></div>
+  </div></fieldset>
+  ${ME.env ? '<div class="note" style="margin-bottom:8px">Είστε συνδεδεμένος ως κύριος διαχειριστής (ορίζεται από τις ρυθμίσεις του Netlify και δεν εμφανίζεται εδώ).</div>' : ''}
+  <table class="users"><tr><th>Χρήστης</th><th>Όνομα</th><th>Ρόλος</th><th>Έργα</th><th>Ενεργός</th><th></th></tr>
+  ${list.map(u => `<tr>
+    <td>${esc(u.username)}</td><td>${esc(u.name)}</td>
+    <td><select onchange="patchUser('${esc(u.username)}',{role:this.value})"><option value="user" ${u.role === 'user' ? 'selected' : ''}>Χρήστης</option><option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Διαχειριστής</option></select></td>
+    <td>${u.role === 'admin' ? '<span class="note">όλα</span>' : `<div class="pchips">${PROJECTS.map(p => `<label><input type="checkbox" ${(u.projects || []).includes(p.id) ? 'checked' : ''} onchange="toggleUserProj('${esc(u.username)}','${esc(p.id)}',this.checked)">${esc(p.name)}</label>`).join('')}</div>`}</td>
+    <td><input type="checkbox" ${u.active ? 'checked' : ''} onchange="patchUser('${esc(u.username)}',{active:this.checked})"></td>
+    <td class="row"><button class="btn sm" onclick="resetPw('${esc(u.username)}')">Κωδικός</button>
+      <button class="btn danger sm" onclick="delUser('${esc(u.username)}')">✕</button></td></tr>`).join('') || '<tr><td colspan="6" class="note">Κανένας χρήστης</td></tr>'}
+  </table>`;
+}
+async function addUser() {
+  try {
+    await api('users', { method: 'POST', body: { username: $('nuUser').value, name: $('nuName').value, password: $('nuPass').value, role: $('nuRole').value, projects: [...document.querySelectorAll('.nuProj:checked')].map(x => x.value) } });
+    toast('Ο χρήστης δημιουργήθηκε', 'ok'); await renderUsers();
+  } catch (e) { toast(e.message, 'err'); }
+}
+async function patchUser(u, body) {
+  try {
+    await api('users/' + encodeURIComponent(u), { method: 'PATCH', body }); toast('Ενημερώθηκε', 'ok');
+    if ('role' in body) await renderUsers();         // ο ρόλος αλλάζει τη στήλη «Έργα» (διαχειριστής: όλα)
+  } catch (e) { toast(e.message, 'err'); await renderUsers(); }
+}
+let USERS_CACHE = [];
+async function toggleUserProj(u, pid, on) {
+  const rec = USERS_CACHE.find(x => x.username === u); if (!rec) return;
+  const set = new Set(rec.projects || []); on ? set.add(pid) : set.delete(pid);
+  rec.projects = [...set];
+  await patchUser(u, { projects: rec.projects });
+}
+async function resetPw(u) {
+  // ο δικός σας κωδικός αλλάζει με επιβεβαίωση του τρέχοντος (και η σύνδεση συνεχίζει με νέο token)
+  if (u === ME.username) { closeModal(); return openPassword(); }
+  const pw = prompt(`Νέος κωδικός για τον χρήστη «${u}» (τουλάχιστον 8 χαρακτήρες):`);
+  if (!pw) return; await patchUser(u, { password: pw });
+}
+async function delUser(u) {
+  if (!confirm(`Διαγραφή του χρήστη «${u}»; Οι παρατηρήσεις του παραμένουν.`)) return;
+  try { await api('users/' + encodeURIComponent(u), { method: 'DELETE' }); toast('Διαγράφηκε', 'ok'); await renderUsers(); }
+  catch (e) { toast(e.message, 'err'); }
+}
+
+// --- Αλλαγή κωδικού ---
+function openPassword() {
+  if (ME.env) return toast('Ο κωδικός του κύριου διαχειριστή αλλάζει από τη μεταβλητή ADMIN_PASS στο Netlify');
+  openModal(`<div class="ph"><h2>Αλλαγή κωδικού</h2><button class="btn sm" onclick="closeModal()">✕</button></div>
+  <div class="mb"><div class="grid">
+    <label class="fld full"><span>Τρέχων κωδικός</span><input type="password" id="pwOld" autocomplete="current-password"></label>
+    <label class="fld full"><span>Νέος κωδικός (≥ 8)</span><input type="password" id="pwNew" autocomplete="new-password"></label>
+    <div class="full row" style="justify-content:flex-end"><button class="btn primary sm" onclick="changePw()">Αλλαγή</button></div>
+  </div></div>`);
+}
+async function changePw() {
+  try {
+    const d = await api('password', { method: 'POST', body: { old: $('pwOld').value, new: $('pwNew').value, remember: REMEMBER } });
+    TOKEN = d.token; storeToken(TOKEN); closeModal(); toast('Ο κωδικός άλλαξε', 'ok');
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+// ===================== ΕΓΚΑΤΑΣΤΑΣΗ (PWA) =====================
+let installEvt = null;
+const showInstall = (on) => document.querySelectorAll('.installBtn').forEach(b => b.classList.toggle('hidden', !on));
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvt = e; showInstall(true); });
+window.addEventListener('appinstalled', () => { installEvt = null; showInstall(false); toast('Η εφαρμογή εγκαταστάθηκε', 'ok'); });
+async function installApp() {
+  if (!installEvt) return;
+  installEvt.prompt();
+  try { await installEvt.userChoice; } catch {}
+  installEvt = null; showInstall(false);
+}
+(() => {   // iPhone/iPad: δεν υπάρχει κουμπί εγκατάστασης, μόνο μέσω Κοινοποίησης
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const standalone = window.navigator.standalone || matchMedia('(display-mode: standalone)').matches;
+  if (ios && !standalone) $('iosHint').classList.remove('hidden');
+})();
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+
+boot();
+</script>
+</body>
+</html>
